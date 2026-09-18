@@ -14,6 +14,6 @@ public class NotifScheduler {
 
     @Scheduled(cron = "0 0 8 * * *")
     public void checkAndNotify() {
-        throw new UnsupportedOperationException("not implemented yet");
+        notifService.checkPlantStates();
     }
 }

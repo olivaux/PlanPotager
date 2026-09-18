@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 
 
 @Entity
@@ -26,6 +27,9 @@ public class GardenPlant {
 
     @Enumerated(EnumType.STRING)
     private PlantState state;
+
+    @Column(name = "date_planted")
+    private LocalDate datePlanted;
 
     @ManyToOne
     @JoinColumn(name = "id_seedpacket")
@@ -74,7 +78,14 @@ public class GardenPlant {
         if (!state.canTransitionTo(newState)) {
             throw new IllegalStateException("Cannot transition plant from " + state + " to " + newState);
         }
+        if (newState == PlantState.PLANTEE) {
+            this.datePlanted = LocalDate.now();
+        }
         this.state = newState;
+    }
+
+    public LocalDate getDatePlanted() {
+        return datePlanted;
     }
 
     public Plant getPlant() {

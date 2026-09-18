@@ -9,6 +9,7 @@ import eu.planpotager.PlanPotager.registry.domain.Species;
 import eu.planpotager.PlanPotager.registry.domain.Type;
 import eu.planpotager.PlanPotager.registry.domain.Variety;
 import eu.planpotager.PlanPotager.user.domain.User;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class GardenPlantTest {
@@ -28,6 +29,16 @@ class GardenPlantTest {
         GardenPlant gardenPlant = newGardenPlant();
 
         assertThat(gardenPlant.getState()).isEqualTo(PlantState.A_PLANTER);
+        assertThat(gardenPlant.getDatePlanted()).isNull();
+    }
+
+    @Test
+    void setState_shouldStampDatePlanted_whenTransitioningToPlantee() {
+        GardenPlant gardenPlant = newGardenPlant();
+
+        gardenPlant.setState(PlantState.PLANTEE);
+
+        assertThat(gardenPlant.getDatePlanted()).isEqualTo(LocalDate.now());
     }
 
     @Test
