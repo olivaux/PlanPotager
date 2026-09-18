@@ -116,6 +116,8 @@ public class GardenController {
             GardenDTO garden = gardenService.changePlantPosition(principal.getEmail(), gardenId, gardenPlantId,
                     position.get("x"), position.get("y"));
             return ResponseEntity.ok(garden);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -157,6 +159,8 @@ public class GardenController {
         try {
             GardenDTO garden = gardenService.setPlantState(principal.getEmail(), gardenId, gardenPlantId, request.state());
             return ResponseEntity.ok(garden);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }

@@ -2,9 +2,11 @@ package eu.planpotager.PlanPotager.garden.service;
 
 import eu.planpotager.PlanPotager.garden.dao.AreaDAO;
 import eu.planpotager.PlanPotager.garden.dao.GardenDAO;
+import eu.planpotager.PlanPotager.garden.dao.PlantArchiveDAO;
 import eu.planpotager.PlanPotager.garden.domain.Area;
 import eu.planpotager.PlanPotager.garden.domain.Garden;
 import eu.planpotager.PlanPotager.garden.domain.GardenPlant;
+import eu.planpotager.PlanPotager.garden.domain.PlantArchive;
 import eu.planpotager.PlanPotager.garden.domain.PlantState;
 import eu.planpotager.PlanPotager.garden.dto.AreaDTO;
 import eu.planpotager.PlanPotager.garden.dto.AssociationLinkDTO;
@@ -31,14 +33,16 @@ public class GardenService {
     private final AreaDAO areaDAO;
     private final UserDAO userDAO;
     private final PlantDAO plantDAO;
+    private final PlantArchiveDAO plantArchiveDAO;
     private final RegistryService registryService;
 
     public GardenService(GardenDAO gardenDAO, AreaDAO areaDAO, UserDAO userDAO, PlantDAO plantDAO,
-            RegistryService registryService) {
+            PlantArchiveDAO plantArchiveDAO, RegistryService registryService) {
         this.gardenDAO = gardenDAO;
         this.areaDAO = areaDAO;
         this.userDAO = userDAO;
         this.plantDAO = plantDAO;
+        this.plantArchiveDAO = plantArchiveDAO;
         this.registryService = registryService;
 
     }
@@ -167,8 +171,19 @@ public class GardenService {
         checkUserAccess(userEmail, garden);
 
         garden.setPlantState(gardenPlantId, state);
+
+        if (state != PlantState.RECOLTEE) {
+            gardenDAO.save(garden);
+            return toGardenDTO(garden);
+        }
+
+        GardenPlant harvestedPlant = garden.findGardenPlant(gardenPlantId);
+        plantArchiveDAO.save(new PlantArchive(harvestedPlant));
+        garden.removePlant(gardenPlantId);
+
+        List<AssociationLinkDTO> associationLinks = recomputeAssociationScore(garden);
         gardenDAO.save(garden);
-        return toGardenDTO(garden);
+        return toGardenDTO(garden, associationLinks);
     }
 
     public GardenDTO removePlantFromGarden(String userEmail, Long gardenId, Long gardenPlantId) {

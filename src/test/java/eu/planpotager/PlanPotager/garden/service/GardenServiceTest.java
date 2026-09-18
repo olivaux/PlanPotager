@@ -10,9 +10,11 @@ import static org.mockito.Mockito.when;
 
 import eu.planpotager.PlanPotager.garden.dao.AreaDAO;
 import eu.planpotager.PlanPotager.garden.dao.GardenDAO;
+import eu.planpotager.PlanPotager.garden.dao.PlantArchiveDAO;
 import eu.planpotager.PlanPotager.garden.domain.Area;
 import eu.planpotager.PlanPotager.garden.domain.Garden;
 import eu.planpotager.PlanPotager.garden.domain.GardenPlant;
+import eu.planpotager.PlanPotager.garden.domain.PlantArchive;
 import eu.planpotager.PlanPotager.garden.domain.PlantState;
 import eu.planpotager.PlanPotager.garden.dto.AreaDTO;
 import eu.planpotager.PlanPotager.garden.dto.GardenDTO;
@@ -52,6 +54,9 @@ class GardenServiceTest {
 
     @Mock
     private PlantDAO plantDAO;
+
+    @Mock
+    private PlantArchiveDAO plantArchiveDAO;
 
     @Mock
     private RegistryService registryService;
@@ -428,10 +433,11 @@ class GardenServiceTest {
         when(gardenDAO.save(garden)).thenReturn(garden);
         when(garden.getId()).thenReturn(1L);
 
-        GardenDTO result = gardenService.setPlantState(USER_EMAIL, 1L, 42L, PlantState.RECOLTEE);
+        GardenDTO result = gardenService.setPlantState(USER_EMAIL, 1L, 42L, PlantState.PLANTEE);
 
-        verify(garden).setPlantState(42L, PlantState.RECOLTEE);
+        verify(garden).setPlantState(42L, PlantState.PLANTEE);
         verify(gardenDAO).save(garden);
+        verifyNoInteractions(plantArchiveDAO);
         assertThat(result.id()).isEqualTo(1L);
     }
 
@@ -444,6 +450,30 @@ class GardenServiceTest {
 
         assertThatThrownBy(() -> gardenService.setPlantState(OTHER_USER_EMAIL, 1L, 42L, PlantState.RECOLTEE))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void setPlantState_shouldArchiveAndRemovePlant_whenTransitioningToRecoltee() {
+        User user = new User(USER_EMAIL);
+        Garden garden = mock(Garden.class);
+        GardenPlant harvestedPlant = mock(GardenPlant.class);
+        when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
+        when(garden.getUser()).thenReturn(user);
+        when(garden.findGardenPlant(42L)).thenReturn(harvestedPlant);
+        when(harvestedPlant.getId()).thenReturn(42L);
+        when(harvestedPlant.getPlant()).thenReturn(plantOfSpecies("Tomate"));
+        when(harvestedPlant.getGarden()).thenReturn(garden);
+        when(garden.getGardenPlants()).thenReturn(List.of());
+        when(gardenDAO.save(garden)).thenReturn(garden);
+        when(garden.getId()).thenReturn(1L);
+
+        GardenDTO result = gardenService.setPlantState(USER_EMAIL, 1L, 42L, PlantState.RECOLTEE);
+
+        verify(garden).setPlantState(42L, PlantState.RECOLTEE);
+        verify(plantArchiveDAO).save(any(PlantArchive.class));
+        verify(garden).removePlant(42L);
+        verify(gardenDAO).save(garden);
+        assertThat(result.id()).isEqualTo(1L);
     }
 
     @Test

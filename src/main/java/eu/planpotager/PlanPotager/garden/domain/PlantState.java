@@ -4,5 +4,9 @@ public enum PlantState {
     A_PLANTER,
     PLANTEE,
     A_RECOLTER,
-    RECOLTEE
+    RECOLTEE;
+
+    public boolean canTransitionTo(PlantState next) {
+        return next.ordinal() == this.ordinal() + 1;
+    }
 }

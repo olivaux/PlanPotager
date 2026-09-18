@@ -113,6 +113,19 @@ CREATE TABLE Plant(
    FOREIGN KEY(id_seedpacket) REFERENCES SeedPacket(id_seedpacket)
 );
 
+CREATE TABLE PlantArchive(
+   id_plant BIGINT,
+   x INT,
+   y INT,
+   state VARCHAR(20),
+   archived_at DATETIME NOT NULL,
+   id_garden BIGINT NOT NULL,
+   id_seedpacket BIGINT NOT NULL,
+   PRIMARY KEY(id_plant),
+   FOREIGN KEY(id_garden) REFERENCES Garden(id_garden),
+   FOREIGN KEY(id_seedpacket) REFERENCES SeedPacket(id_seedpacket)
+);
+
 CREATE TABLE Notification(
    id_notif BIGINT AUTO_INCREMENT,
    email VARCHAR(50)  NOT NULL,

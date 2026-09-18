@@ -7,7 +7,6 @@ import {
   getGardenAreas,
   addPlantToGarden,
   updatePlantPosition,
-  getAvailableStates,
   setPlantState,
   removePlantFromGarden,
 } from '../../services/gardenService.js'
@@ -25,7 +24,6 @@ const gardenId = Number(route.params.id)
 const garden = ref(null)
 const plants = ref([]) // GardenPlantDTO[]
 const areas = ref([]) // AreaDTO[]
-const availableStates = ref([])
 const ownedPlants = ref([]) // PlantDTO[], toutes les plantes du compte (placées ou non)
 const loading = ref(true)
 const error = ref(null)
@@ -80,21 +78,26 @@ function circleClip(ctx, radius) {
   ctx.arc(0, 0, radius, 0, Math.PI * 2, false)
 }
 
+const STATE_ORDER = ['A_PLANTER', 'PLANTEE', 'A_RECOLTER', 'RECOLTEE']
+
+function nextState(state) {
+  const index = STATE_ORDER.indexOf(state)
+  return index >= 0 && index < STATE_ORDER.length - 1 ? STATE_ORDER[index + 1] : null
+}
+
 async function loadAll() {
   loading.value = true
   error.value = null
   try {
-    const [gardenResult, plantsResult, areasResult, statesResult, ownedResult] = await Promise.all([
+    const [gardenResult, plantsResult, areasResult, ownedResult] = await Promise.all([
       getGarden(gardenId),
       getGardenPlants(gardenId),
       getGardenAreas(gardenId),
-      getAvailableStates(gardenId, 0),
       getAvailablePlants(),
     ])
     garden.value = gardenResult
     plants.value = plantsResult
     areas.value = areasResult
-    availableStates.value = statesResult
     ownedPlants.value = ownedResult
   } catch {
     error.value = 'Impossible de charger ce potager.'
@@ -156,8 +159,15 @@ async function changeState(newState) {
     return
   }
   try {
-    garden.value = await setPlantState(gardenId, selectedPlant.value.id, newState)
-    selectedPlant.value.state = newState
+    const gardenPlantId = selectedPlant.value.id
+    garden.value = await setPlantState(gardenId, gardenPlantId, newState)
+    if (newState === 'RECOLTEE') {
+      // Une plante récoltée est archivée côté serveur : elle disparaît du potager actif.
+      plants.value = plants.value.filter((p) => p.id !== gardenPlantId)
+      selectedGardenPlantId.value = null
+    } else {
+      selectedPlant.value.state = newState
+    }
   } catch {
     error.value = "Impossible de changer l'état de cette plante."
   }
@@ -238,7 +248,10 @@ async function removeSelectedPlant() {
                 :value="selectedPlant.state"
                 @change="changeState($event.target.value)"
               >
-                <option v-for="s in availableStates" :key="s" :value="s">{{ s }}</option>
+                <option :value="selectedPlant.state">{{ selectedPlant.state }}</option>
+                <option v-if="nextState(selectedPlant.state)" :value="nextState(selectedPlant.state)">
+                  {{ nextState(selectedPlant.state) }}
+                </option>
               </select>
             </label>
             <button type="button" class="btn" @click="removeSelectedPlant">Retirer du potager</button>
@@ -274,7 +287,7 @@ async function removeSelectedPlant() {
               <v-group
                 v-for="plant in plants"
                 :key="plant.id"
-                :config="{ x: plant.x, y: plant.y, draggable: true }"
+                :config="{ x: plant.x, y: plant.y, draggable: plant.state === 'A_PLANTER' }"
                 @dragend="onPlantDragEnd(plant, $event)"
                 @click="selectPlant(plant)"
                 @tap="selectPlant(plant)"

@@ -211,6 +211,19 @@ class GardenControllerTest {
     }
 
     @Test
+    void changePlantPosition_shouldReturnConflict_whenPlantAlreadyPlanted() throws Exception {
+        when(gardenService.changePlantPosition(EMAIL, 1L, 42L, 30, 40))
+                .thenThrow(new IllegalStateException("Plant position cannot change once planted"));
+
+        mockMvc.perform(put("/api/garden/{gardenId}/plant/{plantId}/position", 1L, 42L)
+                .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("x", 30, "y", 40))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void changePlantPosition_shouldBeRejected_whenNotAuthenticated() throws Exception {
         mockMvc.perform(put("/api/garden/{gardenId}/plant/{plantId}/position", 1L, 42L)
                 .with(csrf())
@@ -247,6 +260,19 @@ class GardenControllerTest {
                 .content(objectMapper.writeValueAsString(new SetStateRequest(PlantState.RECOLTEE))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void setPlantState_shouldReturnConflict_whenTransitionSkipsAState() throws Exception {
+        when(gardenService.setPlantState(EMAIL, 1L, 42L, PlantState.RECOLTEE))
+                .thenThrow(new IllegalStateException("Cannot transition plant from A_PLANTER to RECOLTEE"));
+
+        mockMvc.perform(put("/api/garden/{gardenId}/plant/{plantId}/state", 1L, 42L)
+                .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new SetStateRequest(PlantState.RECOLTEE))))
+                .andExpect(status().isConflict());
     }
 
     @Test
