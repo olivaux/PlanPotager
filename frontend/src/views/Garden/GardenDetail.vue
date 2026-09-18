@@ -28,7 +28,7 @@ const ownedPlants = ref([]) // PlantDTO[], toutes les plantes du compte (placée
 const loading = ref(true)
 const error = ref(null)
 
-const { stageConfig, stagePos, scale, onWheel } = useKonvaZoomPan({ width: 560, height: 560 })
+const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan({ width: 560, height: 560 })
 const { backgroundConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
 
 const plantsById = computed(() => new Map(ownedPlants.value.map((p) => [p.id, p])))
@@ -259,7 +259,7 @@ async function removeSelectedPlant() {
         </aside>
 
         <div class="canvas-wrapper" @dragover.prevent @drop="onCanvasDrop">
-          <v-stage :config="stageConfig" @wheel="onWheel">
+          <v-stage :config="stageConfig" @wheel="onWheel" @dragmove="onStageDragMove">
             <v-layer>
               <v-rect :config="backgroundConfig" />
 

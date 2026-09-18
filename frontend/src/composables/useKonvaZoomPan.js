@@ -11,7 +11,17 @@ export function useKonvaZoomPan(stageSize) {
     scaleY: scale.value,
     x: stagePos.value.x,
     y: stagePos.value.y,
+    draggable: true,
   }))
+
+  function onStageDragMove(konvaEvent) {
+    // Ignore le pan quand on déplace un élément (plante, point de zone...) à l'intérieur du stage.
+    if (konvaEvent.target !== konvaEvent.target.getStage()) {
+      return
+    }
+    const stage = konvaEvent.target.getStage()
+    stagePos.value = { x: stage.x(), y: stage.y() }
+  }
 
   function onWheel(konvaEvent) {
     konvaEvent.evt.preventDefault()
@@ -38,5 +48,5 @@ export function useKonvaZoomPan(stageSize) {
     }
   }
 
-  return { scale, stagePos, stageConfig, onWheel }
+  return { scale, stagePos, stageConfig, onWheel, onStageDragMove }
 }

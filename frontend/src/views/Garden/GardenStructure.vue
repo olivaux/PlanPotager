@@ -21,7 +21,7 @@ const areas = ref([]) // AreaDTO[]
 const loading = ref(true)
 const error = ref(null)
 
-const { stageConfig, stagePos, scale, onWheel } = useKonvaZoomPan({ width: 560, height: 560 })
+const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan({ width: 560, height: 560 })
 const { backgroundConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
 
 // --- Infos potager (nom, coordonnées) ---
@@ -163,7 +163,7 @@ async function removeArea(area) {
         </aside>
 
         <div class="canvas-wrapper">
-          <v-stage :config="stageConfig" @wheel="onWheel">
+          <v-stage :config="stageConfig" @wheel="onWheel" @dragmove="onStageDragMove">
             <v-layer>
               <v-rect :config="backgroundConfig" />
 
