@@ -1,6 +1,8 @@
 package eu.planpotager.PlanPotager.registry.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import eu.planpotager.PlanPotager.registry.dao.AssociationDAO;
@@ -90,7 +92,7 @@ class RegistryServiceTest {
         Species tomato = species("Tomate");
         Species basil = species("Basilic");
         Association association = new Association(tomato, basil, true);
-        when(associationDAO.findBySpeciesName("Tomate")).thenReturn(List.of(association));
+        when(associationDAO.findAll()).thenReturn(List.of(association));
 
         Optional<AssociationDTO> result = registryService.getAssociation("Tomate", "Basilic");
 
@@ -103,8 +105,7 @@ class RegistryServiceTest {
         Species tomato = species("Tomate");
         Species fennel = species("Fenouil");
         Association association = new Association(fennel, tomato, false);
-        when(associationDAO.findBySpeciesName("Tomate")).thenReturn(List.of());
-        when(associationDAO.findBySpeciesName("Fenouil")).thenReturn(List.of(association));
+        when(associationDAO.findAll()).thenReturn(List.of(association));
 
         Optional<AssociationDTO> result = registryService.getAssociation("Tomate", "Fenouil");
 
@@ -114,11 +115,22 @@ class RegistryServiceTest {
 
     @Test
     void getAssociation_shouldReturnEmpty_whenNoAssociationRegistered() {
-        when(associationDAO.findBySpeciesName("Tomate")).thenReturn(List.of());
-        when(associationDAO.findBySpeciesName("Basilic")).thenReturn(List.of());
+        when(associationDAO.findAll()).thenReturn(List.of());
 
         Optional<AssociationDTO> result = registryService.getAssociation("Tomate", "Basilic");
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getAssociation_shouldLoadRegistryOnlyOnce_acrossSuccessiveCalls() {
+        Association association = new Association(species("Tomate"), species("Basilic"), true);
+        when(associationDAO.findAll()).thenReturn(List.of(association));
+
+        registryService.getAssociation("Tomate", "Basilic");
+        registryService.getAssociation("Basilic", "Tomate");
+        registryService.getAssociation("Tomate", "Fenouil");
+
+        verify(associationDAO, times(1)).findAll();
     }
 }
