@@ -1,18 +1,18 @@
 package eu.planpotager.PlanPotager.notification.service;
 
 import eu.planpotager.PlanPotager.garden.dao.GardenDAO;
-import eu.planpotager.PlanPotager.garden.domain.GardenPlant;
 import eu.planpotager.PlanPotager.garden.domain.PlantState;
+import eu.planpotager.PlanPotager.garden.dto.PlantToCheckDTO;
 import eu.planpotager.PlanPotager.notification.dao.NotificationDAO;
 import eu.planpotager.PlanPotager.notification.domain.Notification;
 import eu.planpotager.PlanPotager.notification.dto.NotifDTO;
-import eu.planpotager.PlanPotager.registry.domain.Variety;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +22,8 @@ public class NotifService {
 
     private static final String TYPE_TO_PLANT = "A_PLANTER";
     private static final String TYPE_TO_HARVEST = "A_RECOLTER";
+    private static final List<PlantState> STATES_TO_CHECK = List.of(PlantState.A_PLANTER, PlantState.PLANTEE);
+    private static final int PAGE_SIZE = 500;
 
     private final NotificationDAO notificationDAO;
     private final GardenDAO gardenDAO;
@@ -47,68 +49,74 @@ public class NotifService {
 
     public List<NotifDTO> checkPlantStates() {
         LocalDate today = LocalDate.now();
-        Map<String, List<NotifDTO>> notifsByUser = new HashMap<>();
-
-        for (GardenPlant gardenPlant : gardenDAO.findAllGardenPlants()) {
-            NotifDTO notif = buildDueNotif(gardenPlant, today);
-            if (notif == null) {
-                continue;
-            }
-
-            String userEmail = gardenPlant.getGarden().getUser().getEmail();
-            if (notificationDAO.existsUnreadByUserEmailAndMessage(userEmail, notif.message())) {
-                continue;
-            }
-
-            notifsByUser.computeIfAbsent(userEmail, key -> new ArrayList<>()).add(notif);
+        Set<NotifKey> unreadNotifs = new HashSet<>();
+        for (Notification unread : notificationDAO.findUnread()) {
+            unreadNotifs.add(new NotifKey(unread.getUserEmail(), unread.getMessage()));
         }
 
-        notifsByUser.forEach((userEmail, notifs) -> addNotifications(notifs, userEmail));
+        List<Notification> toSave = new ArrayList<>();
+        Long lastId = 0L;
+        List<PlantToCheckDTO> page;
+        do {
+            page = gardenDAO.findPlantsToCheck(STATES_TO_CHECK, lastId, PageRequest.ofSize(PAGE_SIZE));
+            for (PlantToCheckDTO plant : page) {
+                NotifDTO notif = buildDueNotif(plant, today);
+                if (notif != null && !unreadNotifs.contains(new NotifKey(plant.userEmail(), notif.message()))) {
+                    toSave.add(new Notification(notif.message(), notif.type(), notif.createdAt(), plant.userEmail()));
+                }
+            }
+            if (!page.isEmpty()) {
+                lastId = page.get(page.size() - 1).id();
+            }
+        } while (page.size() == PAGE_SIZE);
 
-        return notifsByUser.values().stream().flatMap(List::stream).toList();
-    }
-
-    public void addNotifications(List<NotifDTO> notifs, String userEmail) {
-        for (NotifDTO notif : notifs) {
-            notificationDAO.save(new Notification(notif.message(), notif.type(), notif.createdAt(), userEmail));
+        if (toSave.isEmpty()) {
+            return List.of();
         }
+        notificationDAO.saveAll(toSave);
+        return toSave.stream()
+                .map(this::toNotifDTO)
+                .toList();
     }
 
-    private NotifDTO buildDueNotif(GardenPlant gardenPlant, LocalDate today) {
-        Variety variety = gardenPlant.getPlant().getVariety();
-        String plantName = variety.getName();
+    private NotifDTO buildDueNotif(PlantToCheckDTO plant, LocalDate today) {
+        String plantName = plant.varietyName();
 
-        if (gardenPlant.getState() == PlantState.A_PLANTER && isPlantingMonth(variety, today)) {
+        if (plant.state() == PlantState.A_PLANTER && isPlantingMonth(plant, today)) {
             return new NotifDTO(null, "Plante " + plantName + " à Planter", TYPE_TO_PLANT, false, LocalDateTime.now());
         }
 
-        if (gardenPlant.getState() == PlantState.PLANTEE && isReadyToHarvest(gardenPlant, variety, today)) {
+        if (plant.state() == PlantState.PLANTEE && isReadyToHarvest(plant, today)) {
             return new NotifDTO(null, "Plante " + plantName + " à Récolter", TYPE_TO_HARVEST, false, LocalDateTime.now());
         }
 
         return null;
     }
 
-    private boolean isPlantingMonth(Variety variety, LocalDate today) {
+    private boolean isPlantingMonth(PlantToCheckDTO plant, LocalDate today) {
         int month = today.getMonthValue();
-        int start = variety.getEffectivePlantationStart();
-        int end = variety.getEffectivePlantationEnd();
+        int start = plant.plantationStart();
+        int end = plant.plantationEnd();
 
         return start <= end ? (month >= start && month <= end) : (month >= start || month <= end);
     }
 
-    private boolean isReadyToHarvest(GardenPlant gardenPlant, Variety variety, LocalDate today) {
-        LocalDate datePlanted = gardenPlant.getDatePlanted();
+    private boolean isReadyToHarvest(PlantToCheckDTO plant, LocalDate today) {
+        LocalDate datePlanted = plant.datePlanted();
         if (datePlanted == null) {
             return false;
         }
 
-        LocalDate dateToHarvest = datePlanted.plusWeeks(variety.getEffectiveHarvestDuration());
+        LocalDate dateToHarvest = datePlanted.plusWeeks(plant.harvestDuration());
         return !today.isBefore(dateToHarvest);
     }
 
     private NotifDTO toNotifDTO(Notification notification) {
         return new NotifDTO(notification.getId(), notification.getMessage(), notification.getType(),
                 notification.getRead(), notification.getCreatedAt());
+    }
+
+    // Un meme message ne doit pas etre renotifie tant que le precedent n'est pas lu, par utilisateur.
+    private record NotifKey(String userEmail, String message) {
     }
 }
