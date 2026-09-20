@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getGarden,
@@ -17,6 +17,7 @@ import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
 import editIcon from '../../assets/edit.png'
+import leftIcon from '../../assets/left.png'
 
 const DEFAULT_PLANT_RADIUS = 30
 
@@ -31,7 +32,28 @@ const ownedPlants = ref([]) // PlantDTO[], toutes les plantes du compte (placée
 const loading = ref(true)
 const error = ref(null)
 
-const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan({ width: 560, height: 560 })
+// Le canvas occupe toute la place disponible : la taille du stage suit celle de son conteneur.
+const stageSize = reactive({ width: 560, height: 560 })
+const canvasEl = ref(null)
+
+const resizeObserver = new ResizeObserver(([entry]) => {
+  stageSize.width = Math.max(1, Math.floor(entry.contentRect.width))
+  stageSize.height = Math.max(1, Math.floor(entry.contentRect.height))
+})
+
+// Le conteneur n'existe qu'une fois le potager charge (v-if) : on l'observe des qu'il apparait.
+watch(canvasEl, (el, previous) => {
+  if (previous) {
+    resizeObserver.unobserve(previous)
+  }
+  if (el) {
+    resizeObserver.observe(el)
+  }
+})
+
+onBeforeUnmount(() => resizeObserver.disconnect())
+
+const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan(stageSize)
 const { backgroundConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
 
 const plantsById = computed(() => new Map(ownedPlants.value.map((p) => [p.id, p])))
@@ -254,53 +276,7 @@ async function removeSelectedPlant() {
     <p v-if="loading">Chargement…</p>
 
     <template v-else-if="garden">
-      <div class="garden-header">
-        <div>
-          <h1>{{ garden.name }}</h1>
-          <p v-if="garden.score !== null && garden.score !== undefined" class="garden-score">
-            Score d'association : {{ garden.score.toFixed(1) }}/10
-          </p>
-          <p v-else class="garden-score hint">Score d'association : aucune association détectée</p>
-        </div>
-        <nav class="garden-nav">
-          <RouterLink
-            :to="{ name: 'garden-structure', params: { id: gardenId } }"
-            class="edit-structure"
-            title="Structure du potager"
-            aria-label="Structure du potager"
-          >
-            <img :src="editIcon" alt="" />
-          </RouterLink>
-          <RouterLink :to="{ name: 'garden-list' }">
-            Mes potagers
-          </RouterLink>
-          <RouterLink :to="{ name: 'plant-list' }">
-            Mes plantes
-          </RouterLink>
-        </nav>
-      </div>
-
-      <div class="garden-layout">
-        <aside v-if="selectedPlant" class="garden-sidebar">
-          <section class="plant-panel">
-            <h2>{{ plantsById.get(selectedPlant.plantId)?.variety ?? 'Plante' }}</h2>
-            <label class="field">
-              État
-              <select
-                :value="selectedPlant.state"
-                @change="changeState($event.target.value)"
-              >
-                <option :value="selectedPlant.state">{{ selectedPlant.state }}</option>
-                <option v-if="nextState(selectedPlant.state)" :value="nextState(selectedPlant.state)">
-                  {{ nextState(selectedPlant.state) }}
-                </option>
-              </select>
-            </label>
-            <button type="button" class="btn" @click="removeSelectedPlant">Retirer du potager</button>
-          </section>
-        </aside>
-
-        <div class="canvas-wrapper" @dragover.prevent @drop="onCanvasDrop">
+      <div ref="canvasEl" class="canvas-wrapper" @dragover.prevent @drop="onCanvasDrop">
           <v-stage :config="stageConfig" @wheel="onWheel" @dragmove="onStageDragMove">
             <v-layer>
               <v-rect :config="backgroundConfig" />
@@ -328,6 +304,29 @@ async function removeSelectedPlant() {
             </v-layer>
           </v-stage>
 
+          <p v-if="garden.score !== null && garden.score !== undefined" class="garden-score">
+            Score d'association : {{ garden.score.toFixed(1) }}/10
+          </p>
+          <p v-else class="garden-score hint">Score d'association : aucune association détectée</p>
+
+          <RouterLink
+            :to="{ name: 'garden-list' }"
+            class="back-to-gardens"
+            title="Mes potagers"
+            aria-label="Mes potagers"
+          >
+            <img :src="leftIcon" alt="" />
+          </RouterLink>
+
+          <RouterLink
+            :to="{ name: 'garden-structure', params: { id: gardenId } }"
+            class="edit-structure"
+            title="Structure du potager"
+            aria-label="Structure du potager"
+          >
+            <img :src="editIcon" alt="" />
+          </RouterLink>
+
           <button
             type="button"
             class="palette-toggle"
@@ -338,6 +337,23 @@ async function removeSelectedPlant() {
             +
           </button>
 
+          <section v-if="selectedPlant" class="plant-panel">
+            <h2>{{ plantsById.get(selectedPlant.plantId)?.variety ?? 'Plante' }}</h2>
+            <label class="field">
+              État
+              <select
+                :value="selectedPlant.state"
+                @change="changeState($event.target.value)"
+              >
+                <option :value="selectedPlant.state">{{ selectedPlant.state }}</option>
+                <option v-if="nextState(selectedPlant.state)" :value="nextState(selectedPlant.state)">
+                  {{ nextState(selectedPlant.state) }}
+                </option>
+              </select>
+            </label>
+            <button type="button" class="btn" @click="removeSelectedPlant">Retirer du potager</button>
+          </section>
+
           <div
             v-if="paletteOpen"
             class="palette-backdrop"
@@ -345,7 +361,17 @@ async function removeSelectedPlant() {
           >
             <!-- .stop : on ne peut pas deposer une plante sur la fenetre elle-meme (elle masque le potager) -->
             <div class="palette-window" @dragover.stop @drop.stop>
-              <h2>Mes plantes disponibles</h2>
+              <div class="palette-header">
+                <h2>Mes plantes disponibles</h2>
+                <RouterLink
+                  :to="{ name: 'plant-list' }"
+                  class="edit-plants"
+                  title="Mes plantes"
+                  aria-label="Mes plantes"
+                >
+                  <img :src="editIcon" alt="" />
+                </RouterLink>
+              </div>
               <p v-if="ownedPlants.length === 0" class="hint">
                 Vous n'avez pas encore de plante. Ajoutez-en depuis votre compte.
               </p>
@@ -373,25 +399,71 @@ async function removeSelectedPlant() {
             </div>
           </div>
         </div>
-      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-.edit-structure {
-  display: inline-flex;
-  align-items: center;
+/* La vue occupe toute la fenetre sous l'entete ; le canvas prend tout l'espace restant. */
+.garden-detail {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  height: calc(100dvh - var(--header-height));
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-.edit-structure img {
-  height: 32px;
-  width: 32px;
-  display: block;
+.garden-detail > p {
+  margin: 0;
+  padding: 12px 20px;
 }
 
 .canvas-wrapper {
   position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+}
+
+.back-to-gardens,
+.edit-structure {
+  position: absolute;
+  top: 12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-border);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.back-to-gardens {
+  left: 12px;
+}
+
+.edit-structure {
+  right: 12px;
+}
+
+.back-to-gardens img {
+  height: 20px;
+  width: 20px;
+  display: block;
+}
+
+.edit-structure img {
+  height: 24px;
+  width: 24px;
+  display: block;
 }
 
 .palette-toggle {
@@ -430,8 +502,27 @@ async function removeSelectedPlant() {
   box-shadow: var(--shadow);
 }
 
-.palette-window h2 {
-  margin-top: 0;
+.palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.palette-header h2 {
+  margin: 0;
+}
+
+.edit-plants {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.edit-plants img {
+  height: 32px;
+  width: 32px;
+  display: block;
 }
 
 .palette {
@@ -486,15 +577,31 @@ async function removeSelectedPlant() {
 }
 
 .garden-score {
-  margin: 4px 0 0;
+  position: absolute;
+  top: 12px;
+  left: 64px;
+  right: 64px;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
   font-size: 14px;
+  text-shadow: 0 0 4px var(--bg), 0 0 4px var(--bg);
+  pointer-events: none;
 }
 
+/* Panneau de la plante selectionnee : superpose au canvas (en bas a droite) pour ne pas le decaler. */
 .plant-panel {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 240px;
+  max-width: calc(100% - 24px);
+  box-sizing: border-box;
   padding: 12px;
   border-radius: 6px;
   border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
+  background: var(--bg);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 8px;

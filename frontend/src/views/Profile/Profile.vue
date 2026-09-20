@@ -42,6 +42,8 @@ onMounted(async () => {
       <a href="https://www.flaticon.com/fr/icones-gratuites/avatar-homme" title="avatar homme icônes" target="_blank" rel="noopener noreferrer">Avatar homme icônes créées par Smashicons - Flaticon</a>
       <br />
       <a href="https://www.flaticon.com/fr/icones-gratuites/modifier" title="modifier icônes" target="_blank" rel="noopener noreferrer">Modifier icônes créées par Karacis - Flaticon</a>
+      <br />
+      <a href="https://www.flaticon.com/fr/icones-gratuites/la-fleche" title="la flèche icônes" target="_blank" rel="noopener noreferrer">La flèche icônes créées par Magnific - Flaticon</a>
     </p>
   </div>
 </template>

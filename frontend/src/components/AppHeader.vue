@@ -30,6 +30,8 @@ const pageTitle = computed(() => dynamicTitle.value ?? route.meta.title ?? '')
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  box-sizing: border-box;
+  height: var(--header-height);
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
 }

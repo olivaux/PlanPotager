@@ -9,6 +9,8 @@
   --success: #2c8a3d;
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Hauteur fixe de l'entete (AppHeader) : les vues plein ecran en deduisent leur hauteur. */
+  --header-height: 85px;
 
   font: 16px/145% system-ui, sans-serif;
   color-scheme: light dark;
