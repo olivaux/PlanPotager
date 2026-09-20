@@ -315,7 +315,7 @@ async function removeSelectedPlant() {
               <v-rect :config="backgroundConfig" />
 
               <template v-for="shape in areaShapes" :key="shape.id">
-                <v-line :config="shape.fill" />
+                <v-shape :config="shape.fill" />
                 <v-text v-for="label in shape.labels" :key="label.key" :config="label.config" />
               </template>
 

@@ -193,7 +193,7 @@ async function removeArea(area) {
               <v-rect :config="backgroundConfig" />
 
               <template v-for="shape in areaShapes" :key="shape.id">
-                <v-line :config="shape.fill" />
+                <v-shape :config="shape.fill" />
                 <v-text v-for="label in shape.labels" :key="label.key" :config="label.config" />
                 <v-circle
                   v-for="corner in cornerShapes.get(shape.id)"
