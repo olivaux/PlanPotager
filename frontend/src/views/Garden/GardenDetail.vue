@@ -12,7 +12,7 @@ import {
 } from '../../services/gardenService.js'
 import { getAvailablePlants } from '../../services/plantService.js'
 import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
-import { usePlantImage } from '../../composables/usePlantImage.js'
+import { usePlantImage, resolveSpeciesImageUrl } from '../../composables/usePlantImage.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
@@ -164,6 +164,8 @@ onMounted(loadAll)
 
 // --- Placement d'une plante (drag depuis la palette, drop sur le canvas) ---
 
+const paletteOpen = ref(false)
+
 function onPaletteDragStart(event, plant) {
   event.dataTransfer.setData('text/plain', String(plant.id))
 }
@@ -279,27 +281,8 @@ async function removeSelectedPlant() {
       </div>
 
       <div class="garden-layout">
-        <aside class="garden-sidebar">
-          <section>
-            <h2>Mes plantes disponibles</h2>
-            <p v-if="ownedPlants.length === 0" class="hint">
-              Vous n'avez pas encore de plante. Ajoutez-en depuis votre compte.
-            </p>
-            <ul v-else class="list-reset palette">
-              <li
-                v-for="plant in ownedPlants"
-                :key="plant.id"
-                class="list-card"
-                draggable="true"
-                @dragstart="onPaletteDragStart($event, plant)"
-              >
-                {{ plant.variety }}
-              </li>
-            </ul>
-            <p class="hint">Glisser une plante sur le potager pour la placer.</p>
-          </section>
-
-          <section v-if="selectedPlant" class="plant-panel">
+        <aside v-if="selectedPlant" class="garden-sidebar">
+          <section class="plant-panel">
             <h2>{{ plantsById.get(selectedPlant.plantId)?.variety ?? 'Plante' }}</h2>
             <label class="field">
               État
@@ -344,6 +327,49 @@ async function removeSelectedPlant() {
               </v-group>
             </v-layer>
           </v-stage>
+
+          <button
+            type="button"
+            class="palette-toggle"
+            title="Mes plantes disponibles"
+            aria-label="Mes plantes disponibles"
+            @click="paletteOpen = !paletteOpen"
+          >
+            +
+          </button>
+
+          <div
+            v-if="paletteOpen"
+            class="palette-backdrop"
+            @click.self="paletteOpen = false"
+          >
+            <!-- .stop : on ne peut pas deposer une plante sur la fenetre elle-meme (elle masque le potager) -->
+            <div class="palette-window" @dragover.stop @drop.stop>
+              <h2>Mes plantes disponibles</h2>
+              <p v-if="ownedPlants.length === 0" class="hint">
+                Vous n'avez pas encore de plante. Ajoutez-en depuis votre compte.
+              </p>
+              <template v-else>
+                <ul class="list-reset palette">
+                  <li
+                    v-for="plant in ownedPlants"
+                    :key="plant.id"
+                    class="list-card"
+                    draggable="true"
+                    @dragstart="onPaletteDragStart($event, plant)"
+                  >
+                    <img :src="resolveSpeciesImageUrl(plant.species)" :alt="plant.species" class="palette-thumb" />
+                    <span class="palette-text">
+                      <span class="palette-species">{{ plant.species }}</span>
+                      <span class="palette-variety">{{ plant.variety }}</span>
+                      <span class="palette-comment">{{ plant.comment }}</span>
+                    </span>
+                  </li>
+                </ul>
+                <p class="hint">Glisser une plante sur le potager pour la placer.</p>
+              </template>
+            </div>
+          </div>
         </div>
       </div>
     </template>
@@ -362,13 +388,89 @@ async function removeSelectedPlant() {
   display: block;
 }
 
+.canvas-wrapper {
+  position: relative;
+}
+
+.palette-toggle {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.palette-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.palette-window {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 60px;
+  height: 50%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.palette-window h2 {
+  margin-top: 0;
+}
+
 .palette {
   margin-bottom: 8px;
   gap: 4px;
 }
 
 .palette li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   cursor: grab;
+}
+
+.palette-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.palette-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.palette-text > span {
+  min-height: 1.3em;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-species {
+  font-weight: bold;
+}
+
+.palette-comment {
+  font-size: 13px;
 }
 
 .hint {

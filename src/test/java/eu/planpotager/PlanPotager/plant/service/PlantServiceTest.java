@@ -50,7 +50,7 @@ class PlantServiceTest {
         PlantDTO result = plantService.addPlant("Tomate Cerise", "Graines du Midi", USER_EMAIL);
 
         assertThat(result.variety()).isEqualTo("Tomate Cerise");
-        assertThat(result.supplier()).isEqualTo("Graines du Midi");
+        assertThat(result.comment()).isEqualTo("Graines du Midi");
         assertThat(result.species()).isEqualTo("Tomate");
         assertThat(result.radius()).isEqualTo(0.2);
         verify(plantDAO).save(any(Plant.class));
