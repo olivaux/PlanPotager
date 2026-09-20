@@ -4,8 +4,9 @@ import { areaToPoints } from '../utils/areaGeometry.js'
 import grassUrl from '../assets/grass.jpg'
 import dirtUrl from '../assets/dirt.jpg'
 
-const GRASS_PATTERN_SCALE = 0.5
-const DIRT_PATTERN_SCALE = 0.5
+// Objets constants : une reference stable evite qu'un config identique soit reapplique au noeud Konva a chaque rendu.
+const GRASS_PATTERN_SCALE = { x: 0.5, y: 0.5 }
+const DIRT_PATTERN_SCALE = { x: 0.5, y: 0.5 }
 
 export function useGardenBackground({ stagePos, scale, stageConfig }) {
   const grassImage = useImage(grassUrl)
@@ -21,13 +22,14 @@ export function useGardenBackground({ stagePos, scale, stageConfig }) {
       height: stageConfig.value.height / scale.value,
       fillPatternImage: grassImage.value,
       fillPatternRepeat: 'repeat',
-      fillPatternScale: { x: GRASS_PATTERN_SCALE, y: GRASS_PATTERN_SCALE },
+      fillPatternScale: GRASS_PATTERN_SCALE,
       // Konva ancre le pattern à l'origine locale du shape (x, y), qui bouge ici à
       // chaque pan/zoom pour garder le rect collé au viewport. On compense pour que
       // le motif reste ancré au même point fixe que celui des zones (x=0, y=0).
       fillPatternX: -x,
       fillPatternY: -y,
       listening: false,
+      perfectDrawEnabled: false,
     }
   })
 
@@ -39,7 +41,9 @@ export function useGardenBackground({ stagePos, scale, stageConfig }) {
       strokeWidth: 2,
       fillPatternImage: dirtImage.value,
       fillPatternRepeat: 'repeat',
-      fillPatternScale: { x: DIRT_PATTERN_SCALE, y: DIRT_PATTERN_SCALE },
+      fillPatternScale: DIRT_PATTERN_SCALE,
+      listening: false,
+      perfectDrawEnabled: false,
     }
   }
 

@@ -14,7 +14,7 @@ import { getAvailablePlants } from '../../services/plantService.js'
 import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
 import { usePlantImage } from '../../composables/usePlantImage.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
-import { EDGES, edgeMidpoint, edgeLength } from '../../utils/areaGeometry.js'
+import { useAreaShapes } from '../../composables/useAreaShapes.js'
 
 const DEFAULT_PLANT_RADIUS = 30
 
@@ -39,6 +39,8 @@ const selectedPlant = computed(
   () => plants.value.find((p) => p.id === selectedGardenPlantId.value) ?? null,
 )
 
+const areaShapes = useAreaShapes(areas, areaFillConfig)
+
 const associationLines = computed(() =>
   (garden.value?.associationLinks ?? [])
     .map((link) => {
@@ -49,8 +51,14 @@ const associationLines = computed(() =>
       }
       return {
         key: `${link.plantId1}-${link.plantId2}`,
-        points: [from.x, from.y, to.x, to.y],
-        stroke: link.positive ? '#3de05b' : '#c0392b',
+        config: {
+          points: [from.x, from.y, to.x, to.y],
+          stroke: link.positive ? '#3de05b' : '#c0392b',
+          strokeWidth: 3,
+          dash: [6, 4],
+          listening: false,
+          perfectDrawEnabled: false,
+        },
       }
     })
     .filter((line) => line !== null),
@@ -77,6 +85,49 @@ function plantStrokeColor(state) {
 function circleClip(ctx, radius) {
   ctx.arc(0, 0, radius, 0, Math.PI * 2, false)
 }
+
+// Un clipFunc par rayon (et non par plante et par rendu) : sa reference reste stable d'un rendu a l'autre.
+const clipFuncsByRadius = new Map()
+
+function clipFuncForRadius(radius) {
+  if (!clipFuncsByRadius.has(radius)) {
+    clipFuncsByRadius.set(radius, (ctx) => circleClip(ctx, radius))
+  }
+  return clipFuncsByRadius.get(radius)
+}
+
+// Configs Konva de chaque plante, recalculees uniquement quand les plantes, la selection ou les images changent,
+// pas a chaque pan/zoom. Le cercle est le seul noeud qui ecoute la souris (zone de clic/drag du groupe) :
+// l'image et son clip, de meme rayon, sont exclus du hit graph.
+const plantNodes = computed(() =>
+  plants.value.map((plant) => {
+    const radius = plantRadius(plant.plantId)
+    return {
+      id: plant.id,
+      group: { x: plant.x, y: plant.y, draggable: plant.state === 'A_PLANTER' },
+      circle: {
+        radius,
+        stroke: plantStrokeColor(plant.state),
+        strokeWidth: 2,
+        fill: plant.id === selectedGardenPlantId.value ? '#2c8a3d' : undefined,
+        perfectDrawEnabled: false,
+      },
+      clip: { clipFunc: clipFuncForRadius(radius), listening: false },
+      image: {
+        image: plantImage(plant.plantId),
+        width: 2 * radius,
+        height: 2 * radius,
+        offsetX: radius,
+        offsetY: radius,
+        opacity: plant.state === 'RECOLTEE' ? 0.5 : 1,
+        listening: false,
+        perfectDrawEnabled: false,
+      },
+      onDragEnd: (konvaEvent) => onPlantDragEnd(plant, konvaEvent),
+      onSelect: () => selectPlant(plant),
+    }
+  }),
+)
 
 const STATE_ORDER = ['A_PLANTER', 'PLANTEE', 'A_RECOLTER', 'RECOLTEE']
 
@@ -263,54 +314,24 @@ async function removeSelectedPlant() {
             <v-layer>
               <v-rect :config="backgroundConfig" />
 
-              <template v-for="area in areas" :key="area.id">
-                <v-line :config="areaFillConfig(area)" />
-                <v-text
-                  v-for="[keyA, keyB] in EDGES"
-                  :key="`${area.id}-${keyA}-${keyB}`"
-                  :config="{
-                    x: edgeMidpoint(area, keyA, keyB).x,
-                    y: edgeMidpoint(area, keyA, keyB).y,
-                    text: edgeLength(area, keyA, keyB),
-                    fontSize: 12,
-                    fill: '#ffffff',
-                  }"
-                />
+              <template v-for="shape in areaShapes" :key="shape.id">
+                <v-line :config="shape.fill" />
+                <v-text v-for="label in shape.labels" :key="label.key" :config="label.config" />
               </template>
 
-              <v-line
-                v-for="line in associationLines"
-                :key="line.key"
-                :config="{ points: line.points, stroke: line.stroke, strokeWidth: 3, dash: [6, 4], listening: false }"
-              />
+              <v-line v-for="line in associationLines" :key="line.key" :config="line.config" />
 
               <v-group
-                v-for="plant in plants"
-                :key="plant.id"
-                :config="{ x: plant.x, y: plant.y, draggable: plant.state === 'A_PLANTER' }"
-                @dragend="onPlantDragEnd(plant, $event)"
-                @click="selectPlant(plant)"
-                @tap="selectPlant(plant)"
+                v-for="node in plantNodes"
+                :key="node.id"
+                :config="node.group"
+                @dragend="node.onDragEnd"
+                @click="node.onSelect"
+                @tap="node.onSelect"
               >
-                <v-circle
-                  :config="{
-                    radius: plantRadius(plant.plantId),
-                    stroke: plantStrokeColor(plant.state),
-                    strokeWidth: 2,
-                    fill: plant.id === selectedGardenPlantId ? '#2c8a3d' : undefined,
-                  }"
-                />
-                <v-group :config="{ clipFunc: (ctx) => circleClip(ctx, plantRadius(plant.plantId)) }">
-                  <v-image
-                    :config="{
-                      image: plantImage(plant.plantId),
-                      width: 2 * plantRadius(plant.plantId),
-                      height: 2 * plantRadius(plant.plantId),
-                      offsetX: plantRadius(plant.plantId),
-                      offsetY: plantRadius(plant.plantId),
-                      opacity: plant.state === 'RECOLTEE' ? 0.5 : 1,
-                    }"
-                  />
+                <v-circle :config="node.circle" />
+                <v-group :config="node.clip">
+                  <v-image :config="node.image" />
                 </v-group>
               </v-group>
             </v-layer>

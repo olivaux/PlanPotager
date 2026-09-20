@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getGarden,
@@ -11,7 +11,8 @@ import {
 } from '../../services/gardenService.js'
 import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
-import { CORNER_KEYS, EDGES, edgeMidpoint, edgeLength } from '../../utils/areaGeometry.js'
+import { useAreaShapes } from '../../composables/useAreaShapes.js'
+import { CORNER_KEYS } from '../../utils/areaGeometry.js'
 
 const route = useRoute()
 const gardenId = Number(route.params.id)
@@ -23,6 +24,7 @@ const error = ref(null)
 
 const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan({ width: 560, height: 560 })
 const { backgroundConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
+const areaShapes = useAreaShapes(areas, areaFillConfig)
 
 // --- Infos potager (nom, coordonnées) ---
 
@@ -100,6 +102,29 @@ async function onCornerDragEnd(area) {
   }
 }
 
+// Configs et handlers des poignees, calcules quand les zones changent et non a chaque rendu (pan/zoom).
+const cornerShapes = computed(
+  () =>
+    new Map(
+      areas.value.map((area) => [
+        area.id,
+        CORNER_KEYS.map((key) => ({
+          key,
+          config: {
+            x: area[`${key}X`],
+            y: area[`${key}Y`],
+            radius: 6,
+            fill: '#aa3bff',
+            draggable: true,
+            perfectDrawEnabled: false,
+          },
+          onDragMove: (konvaEvent) => onCornerDragMove(area, key, konvaEvent),
+          onDragEnd: () => onCornerDragEnd(area),
+        })),
+      ]),
+    ),
+)
+
 async function removeArea(area) {
   if (!window.confirm('Supprimer cette zone ?')) {
     return
@@ -167,31 +192,15 @@ async function removeArea(area) {
             <v-layer>
               <v-rect :config="backgroundConfig" />
 
-              <template v-for="area in areas" :key="area.id">
-                <v-line :config="areaFillConfig(area)" />
-                <v-text
-                  v-for="[keyA, keyB] in EDGES"
-                  :key="`${area.id}-${keyA}-${keyB}`"
-                  :config="{
-                    x: edgeMidpoint(area, keyA, keyB).x,
-                    y: edgeMidpoint(area, keyA, keyB).y,
-                    text: edgeLength(area, keyA, keyB),
-                    fontSize: 12,
-                    fill: '#ffffff',
-                  }"
-                />
+              <template v-for="shape in areaShapes" :key="shape.id">
+                <v-line :config="shape.fill" />
+                <v-text v-for="label in shape.labels" :key="label.key" :config="label.config" />
                 <v-circle
-                  v-for="key in CORNER_KEYS"
-                  :key="`${area.id}-${key}`"
-                  :config="{
-                    x: area[`${key}X`],
-                    y: area[`${key}Y`],
-                    radius: 6,
-                    fill: '#aa3bff',
-                    draggable: true,
-                  }"
-                  @dragmove="onCornerDragMove(area, key, $event)"
-                  @dragend="onCornerDragEnd(area)"
+                  v-for="corner in cornerShapes.get(shape.id)"
+                  :key="corner.key"
+                  :config="corner.config"
+                  @dragmove="corner.onDragMove"
+                  @dragend="corner.onDragEnd"
                 />
               </template>
             </v-layer>
