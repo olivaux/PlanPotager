@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getGarden,
@@ -12,7 +12,7 @@ import {
 import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
-import { CORNER_KEYS } from '../../utils/areaGeometry.js'
+import { CORNER_KEYS, edgeMidpoint, edgeLength, setEdgeLength } from '../../utils/areaGeometry.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
 
 const route = useRoute()
@@ -26,7 +26,7 @@ const error = ref(null)
 
 const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan({ width: 560, height: 560 })
 const { backgroundConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
-const areaShapes = useAreaShapes(areas, areaFillConfig)
+const areaShapes = useAreaShapes(areas, areaFillConfig, { editableLabels: true })
 
 // --- Infos potager (nom, coordonnées) ---
 
@@ -127,6 +127,79 @@ const cornerShapes = computed(
     ),
 )
 
+// --- Saisie manuelle de la longueur d'un cote (clic sur sa dimension) ---
+
+const editing = ref(null) // { area, keyA, keyB, value }
+const lengthInput = ref(null)
+
+// Le champ de saisie est un <input> HTML superpose au canvas, centre sur le milieu du cote (suit le pan/zoom).
+const editingStyle = computed(() => {
+  if (!editing.value) {
+    return null
+  }
+  const { area, keyA, keyB } = editing.value
+  const { x, y } = edgeMidpoint(area, keyA, keyB)
+  return {
+    left: `${x * scale.value + stagePos.value.x}px`,
+    top: `${y * scale.value + stagePos.value.y}px`,
+  }
+})
+
+watch(editing, async (value) => {
+  if (value) {
+    await nextTick()
+    lengthInput.value?.select()
+  }
+})
+
+function startEditLength(area, label) {
+  editing.value = {
+    area,
+    keyA: label.keyA,
+    keyB: label.keyB,
+    value: edgeLength(area, label.keyA, label.keyB),
+  }
+}
+
+function cancelEditLength() {
+  editing.value = null
+}
+
+async function commitEditLength() {
+  // Efface l'etat avant tout : le retrait de l'input declenche un blur qui ne doit pas revalider.
+  const current = editing.value
+  editing.value = null
+  if (!current) {
+    return
+  }
+
+  const length = Number(String(current.value).replace(',', '.'))
+  if (!Number.isFinite(length) || length <= 0) {
+    error.value = 'Longueur invalide : saisissez un nombre positif.'
+    return
+  }
+
+  const { area, keyA, keyB } = current
+  if (length === Number(edgeLength(area, keyA, keyB))) {
+    return
+  }
+
+  const previous = { x: area[`${keyB}X`], y: area[`${keyB}Y`] }
+  error.value = null
+  setEdgeLength(area, keyA, keyB, length)
+  try {
+    await updateArea(gardenId, area.id, area)
+  } catch {
+    area[`${keyB}X`] = previous.x
+    area[`${keyB}Y`] = previous.y
+    error.value = 'Impossible de modifier cette longueur.'
+  }
+}
+
+function setCursor(konvaEvent, cursor) {
+  konvaEvent.target.getStage().container().style.cursor = cursor
+}
+
 async function removeArea(area) {
   if (!window.confirm('Supprimer cette zone ?')) {
     return
@@ -196,7 +269,15 @@ async function removeArea(area) {
 
               <template v-for="shape in areaShapes" :key="shape.id">
                 <v-shape :config="shape.fill" />
-                <v-text v-for="label in shape.labels" :key="label.key" :config="label.config" />
+                <v-text
+                  v-for="label in shape.labels"
+                  :key="label.key"
+                  :config="label.config"
+                  @click="startEditLength(shape.area, label)"
+                  @tap="startEditLength(shape.area, label)"
+                  @mouseenter="setCursor($event, 'pointer')"
+                  @mouseleave="setCursor($event, '')"
+                />
                 <v-circle
                   v-for="corner in cornerShapes.get(shape.id)"
                   :key="corner.key"
@@ -207,6 +288,20 @@ async function removeArea(area) {
               </template>
             </v-layer>
           </v-stage>
+
+          <input
+            v-if="editing"
+            ref="lengthInput"
+            v-model="editing.value"
+            class="length-input"
+            :style="editingStyle"
+            type="text"
+            inputmode="decimal"
+            aria-label="Longueur du côté"
+            @keydown.enter.prevent="commitEditLength"
+            @keydown.esc.prevent="cancelEditLength"
+            @blur="commitEditLength"
+          />
         </div>
       </div>
     </template>
@@ -222,6 +317,26 @@ async function removeArea(area) {
 
 .info-form .field {
   font-size: 13px;
+}
+
+.canvas-wrapper {
+  position: relative;
+}
+
+.length-input {
+  position: absolute;
+  z-index: 1;
+  width: 64px;
+  box-sizing: border-box;
+  padding: 2px 4px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--accent-border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
 }
 
 .areas {
