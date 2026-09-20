@@ -2318,7 +2318,7 @@ loop pour chaque paire (A, B) dans le rayon
   reg --> svc : Optional<AssociationDTO>
 end
 
-svc -> svc : score = bonnes / (bonnes + mauvaises) * 10\n(score = null si bonnes + mauvaises = 0)
+svc -> svc : score = (bonnes + neutres / 2) / (bonnes + mauvaises + neutres) * 10\n(neutre = paire sans association enregistrée ;\nscore = null si aucune paire dans le rayon)
 svc -> enG : setScore(score)
 svc -> repoG : save(garden)
 repoG --> svc : Garden

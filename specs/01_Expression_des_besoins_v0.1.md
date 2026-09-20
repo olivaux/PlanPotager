@@ -465,7 +465,7 @@ Aucune
 
 ##### Exceptions
 
-- Aucune association enregistrée pour aucune paire de plantes du potager (bonnes + mauvaises = 0) : le score n'est pas calculable (division par zéro). Proposition à confirmer : ne pas afficher de score plutôt qu'une valeur par défaut arbitraire (0/10 ou 5/10).
+- Aucune paire de plantes dans le rayon d'1 mètre (bonnes + mauvaises + neutres = 0) : le score n'est pas calculable (division par zéro), aucun score n'est affiché. Une paire sans association enregistrée est "neutre" : elle compte dans le score (bonne = +1, neutre = 0, mauvaise = -1, ramenés sur 0..10), ce qui tire le score vers 5 lorsque les plantes voisines n'ont aucune association.
 
 ##### Diagramme d'activité
 
@@ -492,6 +492,7 @@ Aucune
 
   :bonnes = 0;
   :mauvaises = 0;
+  :neutres = 0;
 
   while (Pour chaque paire (A, B) dans le rayon)
     if (Association(A, B) enregistrée ?) then (oui)
@@ -503,12 +504,13 @@ Aucune
         :Afficher une ligne rouge entre A et B;
       endif
     else (non, neutre)
+      :neutres += 1;
     endif
   endwhile
 
-  if (bonnes + mauvaises > 0 ?) then (oui)
+  if (bonnes + mauvaises + neutres > 0 ?) then (oui)
     :Calculer le score du potager sur 10
-    score = bonnes / (bonnes + mauvaises) * 10;
+    score = (bonnes + neutres / 2) / (bonnes + mauvaises + neutres) * 10;
   else (non)
     :Aucun score affiché;
   endif

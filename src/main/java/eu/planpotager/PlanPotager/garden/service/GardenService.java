@@ -269,6 +269,7 @@ public class GardenService {
         List<AssociationLinkDTO> links = new ArrayList<>();
         int goodCount = 0;
         int badCount = 0;
+        int neutralCount = 0;
 
         for (int i = 0; i < gardenPlants.size(); i++) {
             for (int j = i + 1; j < gardenPlants.size(); j++) {
@@ -282,6 +283,7 @@ public class GardenService {
                 String speciesB = b.getPlant().getVariety().getSpecies().getName();
                 Optional<AssociationDTO> association = registryService.getAssociation(speciesA, speciesB);
                 if (association.isEmpty()) {
+                    neutralCount++;
                     continue;
                 }
 
@@ -295,8 +297,12 @@ public class GardenService {
             }
         }
 
-        int total = goodCount + badCount;
-        Double score = total == 0 ? null : (double) goodCount / total * 10;
+        // Chaque paire dans le rayon compte : bonne = +1, neutre (aucune association enregistree) = 0, mauvaise = -1,
+        // ramenes sur 0..10 ((bonnes + neutres / 2) / paires * 10). Les paires neutres tirent le score vers 5 : des
+        // bonnes associations au milieu de nombreuses paires neutres valent moins que des bonnes associations seules,
+        // mais plus qu'aucune. Null s'il n'y a aucune paire dans le rayon.
+        int total = goodCount + badCount + neutralCount;
+        Double score = total == 0 ? null : (goodCount + 0.5 * neutralCount) / total * 10;
 
         return new AssociationScore(links, score);
     }

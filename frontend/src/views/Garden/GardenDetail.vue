@@ -310,7 +310,7 @@ async function removeSelectedPlant() {
             <!-- Le serveur calcule un score sur 10 : converti en 0 a 5 etoiles. -->
             <StarRating :value="garden.score / 2" />
           </p>
-          <p v-else class="garden-score hint">Score d'association : aucune association détectée</p>
+          <p v-else class="garden-score hint">Score d'association : aucune plante voisine</p>
 
           <RouterLink
             :to="{ name: 'garden-list' }"

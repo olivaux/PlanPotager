@@ -2,6 +2,7 @@ package eu.planpotager.PlanPotager.garden.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -190,7 +191,7 @@ class GardenServiceTest {
     }
 
     @Test
-    void getGardenById_shouldReturnNullScore_whenNoAssociationRegisteredForNearbyPlants() {
+    void getGardenById_shouldReturnNeutralScore_whenNoAssociationRegisteredForNearbyPlants() {
         User user = new User(USER_EMAIL);
         Garden garden = new Garden("Potager du fond", 2.35, 48.85, user);
         garden.addPlant(plantOfSpecies("Tomate"), 0, 0);
@@ -200,8 +201,28 @@ class GardenServiceTest {
 
         GardenDTO result = gardenService.getGardenById(USER_EMAIL, 1L);
 
-        assertThat(result.score()).isNull();
+        assertThat(result.score()).isEqualTo(5.0);
         assertThat(result.associationLinks()).isEmpty();
+    }
+
+    @Test
+    void getGardenById_shouldLowerScore_whenGoodAssociationIsSurroundedByNeutralPairs() {
+        User user = new User(USER_EMAIL);
+        Garden garden = new Garden("Potager du fond", 2.35, 48.85, user);
+        garden.addPlant(plantOfSpecies("Tomate"), 0, 0);
+        garden.addPlant(plantOfSpecies("Basilic"), 50, 0);
+        garden.addPlant(plantOfSpecies("Carotte"), 0, 50);
+        when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
+        when(registryService.getAssociation("Tomate", "Basilic"))
+                .thenReturn(Optional.of(new AssociationDTO("Tomate", "Basilic", true)));
+        when(registryService.getAssociation("Tomate", "Carotte")).thenReturn(Optional.empty());
+        when(registryService.getAssociation("Basilic", "Carotte")).thenReturn(Optional.empty());
+
+        GardenDTO result = gardenService.getGardenById(USER_EMAIL, 1L);
+
+        // 1 bonne + 2 neutres : (1 + 2 * 0,5) / 3 * 10, entre le neutre pur (5) et le tout-bon (10)
+        assertThat(result.score()).isCloseTo(6.67, within(0.01));
+        assertThat(result.associationLinks()).hasSize(1);
     }
 
     @Test
