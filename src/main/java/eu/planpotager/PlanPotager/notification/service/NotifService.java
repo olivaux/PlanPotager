@@ -50,8 +50,10 @@ public class NotifService {
                 .toList();
     }
 
-    public void setNotifAsRead(Long notifId) {
+    public void setNotifAsRead(String userEmail, Long notifId) {
+        // Meme erreur qu'une notification absente : on ne revele pas l'existence de celles des autres utilisateurs.
         Notification notification = notificationDAO.findById(notifId)
+                .filter(found -> found.getUserEmail().equals(userEmail))
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
 
         notification.setRead(true);

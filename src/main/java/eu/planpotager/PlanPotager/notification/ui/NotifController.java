@@ -30,9 +30,9 @@ public class NotifController {
     }
 
     @PutMapping("/{id}/read")
-    public ResponseEntity<Void> readNotif(@PathVariable Long id) {
+    public ResponseEntity<Void> readNotif(@AuthenticationPrincipal OidcUser principal, @PathVariable Long id) {
         try {
-            notifService.setNotifAsRead(id);
+            notifService.setNotifAsRead(principal.getEmail(), id);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();

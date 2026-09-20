@@ -249,7 +249,7 @@ class NotifServiceTest {
         Notification notification = new Notification("Plante Tomate à Planter", "A_PLANTER", LocalDateTime.now(), USER_EMAIL);
         when(notificationDAO.findById(1L)).thenReturn(Optional.of(notification));
 
-        notifService.setNotifAsRead(1L);
+        notifService.setNotifAsRead(USER_EMAIL, 1L);
 
         assertThat(notification.getRead()).isTrue();
     }
@@ -258,7 +258,17 @@ class NotifServiceTest {
     void setNotifAsRead_shouldThrow_whenNotificationNotFound() {
         when(notificationDAO.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> notifService.setNotifAsRead(1L))
+        assertThatThrownBy(() -> notifService.setNotifAsRead(USER_EMAIL, 1L))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void setNotifAsRead_shouldThrowAndLeaveNotificationUnread_whenItBelongsToAnotherUser() {
+        Notification notification = new Notification("Plante Tomate à Planter", "A_PLANTER", LocalDateTime.now(), "autre@example.com");
+        when(notificationDAO.findById(1L)).thenReturn(Optional.of(notification));
+
+        assertThatThrownBy(() -> notifService.setNotifAsRead(USER_EMAIL, 1L))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(notification.getRead()).isFalse();
     }
 }

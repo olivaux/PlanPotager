@@ -1,6 +1,7 @@
 package eu.planpotager.PlanPotager.notification.ui;
 
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
@@ -71,11 +72,12 @@ class NotifControllerTest {
                 .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL)))
                 .with(csrf()))
                 .andExpect(status().isNoContent());
+        verify(notifService).setNotifAsRead(EMAIL, 1L);
     }
 
     @Test
     void readNotif_shouldReturnNotFound_whenNotificationDoesNotExist() throws Exception {
-        doThrow(new IllegalArgumentException("Notification not found")).when(notifService).setNotifAsRead(1L);
+        doThrow(new IllegalArgumentException("Notification not found")).when(notifService).setNotifAsRead(EMAIL, 1L);
 
         mockMvc.perform(put("/api/notif/{id}/read", 1L)
                 .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL)))
