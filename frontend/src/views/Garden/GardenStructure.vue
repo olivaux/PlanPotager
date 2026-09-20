@@ -26,7 +26,7 @@ const loading = ref(true)
 const error = ref(null)
 
 const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan({ width: 560, height: 560 })
-const { backgroundConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
+const { backgroundConfig, gridConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
 const areaShapes = useAreaShapes(areas, areaFillConfig, { editableLabels: true })
 
 // --- Infos potager (nom, coordonnées) ---
@@ -407,6 +407,7 @@ async function removeArea(area) {
           <v-stage :config="stageConfig" @wheel="onWheel" @dragmove="onStageDragMove">
             <v-layer>
               <v-rect :config="backgroundConfig" />
+              <v-shape :config="gridConfig" />
 
               <template v-for="shape in areaShapes" :key="shape.id">
                 <v-shape :config="areaFillConfigs.get(shape.id)" />

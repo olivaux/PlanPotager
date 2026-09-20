@@ -54,7 +54,7 @@ watch(canvasEl, (el, previous) => {
 onBeforeUnmount(() => resizeObserver.disconnect())
 
 const { stageConfig, stagePos, scale, onWheel, onStageDragMove } = useKonvaZoomPan(stageSize)
-const { backgroundConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
+const { backgroundConfig, gridConfig, areaFillConfig } = useGardenBackground({ stagePos, scale, stageConfig })
 
 const plantsById = computed(() => new Map(ownedPlants.value.map((p) => [p.id, p])))
 const plantsByGardenPlantId = computed(() => new Map(plants.value.map((p) => [p.id, p])))
@@ -280,6 +280,7 @@ async function removeSelectedPlant() {
           <v-stage :config="stageConfig" @wheel="onWheel" @dragmove="onStageDragMove">
             <v-layer>
               <v-rect :config="backgroundConfig" />
+              <v-shape :config="gridConfig" />
 
               <template v-for="shape in areaShapes" :key="shape.id">
                 <v-shape :config="shape.fill" />
