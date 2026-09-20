@@ -40,13 +40,23 @@ class NotifControllerTest {
     @Test
     void getNotifications_shouldReturnUserNotifications_whenAuthenticated() throws Exception {
         NotifDTO notif = new NotifDTO(1L, "Plante Tomate à Planter", "A_PLANTER", false, LocalDateTime.now());
-        when(notifService.getNotificationsByUser(EMAIL)).thenReturn(List.of(notif));
+        when(notifService.getNotificationsByUser(EMAIL, 0, 20)).thenReturn(List.of(notif));
 
         mockMvc.perform(get("/api/notif")
                 .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].message").value("Plante Tomate à Planter"));
+    }
+
+    @Test
+    void getNotifications_shouldForwardPageAndSizeParameters() throws Exception {
+        when(notifService.getNotificationsByUser(EMAIL, 2, 50)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/notif").param("page", "2").param("size", "50")
+                .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test

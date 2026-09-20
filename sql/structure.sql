@@ -130,7 +130,7 @@ CREATE TABLE Notification(
    id_notif BIGINT AUTO_INCREMENT,
    email VARCHAR(50)  NOT NULL,
    isRead BOOLEAN,
-   message VARCHAR(50) ,
+   message VARCHAR(100) ,
    type VARCHAR(50) ,
    created_at DATETIME,
    PRIMARY KEY(id_notif),

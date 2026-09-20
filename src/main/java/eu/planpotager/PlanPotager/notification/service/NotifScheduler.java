@@ -12,6 +12,11 @@ public class NotifScheduler {
         this.notifService = notifService;
     }
 
+    @Scheduled(cron = "0 0 3 * * *")
+    public void purgeExpiredNotifications() {
+        notifService.purgeExpiredNotifications();
+    }
+
     @Scheduled(cron = "0 0 8 * * *")
     public void checkAndNotify() {
         notifService.checkPlantStates();

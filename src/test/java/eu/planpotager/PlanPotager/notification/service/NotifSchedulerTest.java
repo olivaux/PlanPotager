@@ -31,4 +31,11 @@ class NotifSchedulerTest {
 
         verify(notifService).checkPlantStates();
     }
+
+    @Test
+    void purgeExpiredNotifications_shouldDelegateToService() {
+        notifScheduler.purgeExpiredNotifications();
+
+        verify(notifService).purgeExpiredNotifications();
+    }
 }

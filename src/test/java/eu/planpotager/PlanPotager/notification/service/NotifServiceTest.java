@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +17,7 @@ import eu.planpotager.PlanPotager.garden.dto.PlantToCheckDTO;
 import eu.planpotager.PlanPotager.notification.dao.NotificationDAO;
 import eu.planpotager.PlanPotager.notification.domain.Notification;
 import eu.planpotager.PlanPotager.notification.dto.NotifDTO;
+import eu.planpotager.PlanPotager.notification.dto.NotifKeyDTO;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +30,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class NotifServiceTest {
@@ -116,11 +119,11 @@ class NotifServiceTest {
     }
 
     @Test
-    void checkPlantStates_shouldSkip_whenUnreadNotificationAlreadyExistsForThatPlant() {
+    void checkPlantStates_shouldSkip_whenRecentNotificationAlreadyExists_readOrNot() {
         int currentMonth = LocalDate.now().getMonthValue();
         givenPlantsToCheck(plantToCheck(1L, PlantState.A_PLANTER, null, currentMonth, currentMonth, 8));
-        when(notificationDAO.findUnread()).thenReturn(List.of(
-                new Notification("Plante Tomate Cerise à Planter", "A_PLANTER", LocalDateTime.now(), USER_EMAIL)));
+        when(notificationDAO.findKeysCreatedSince(any(LocalDateTime.class))).thenReturn(List.of(
+                new NotifKeyDTO(USER_EMAIL, "Plante Tomate Cerise à Planter")));
 
         List<NotifDTO> result = notifService.checkPlantStates();
 
@@ -129,13 +132,38 @@ class NotifServiceTest {
     }
 
     @Test
-    void checkPlantStates_shouldStillNotify_whenSameUnreadMessageBelongsToAnotherUser() {
+    void checkPlantStates_shouldStillNotify_whenSameMessageWasSentToAnotherUser() {
         int currentMonth = LocalDate.now().getMonthValue();
         givenPlantsToCheck(plantToCheck(1L, PlantState.A_PLANTER, null, currentMonth, currentMonth, 8));
-        when(notificationDAO.findUnread()).thenReturn(List.of(
-                new Notification("Plante Tomate Cerise à Planter", "A_PLANTER", LocalDateTime.now(), "autre@example.com")));
+        when(notificationDAO.findKeysCreatedSince(any(LocalDateTime.class))).thenReturn(List.of(
+                new NotifKeyDTO("autre@example.com", "Plante Tomate Cerise à Planter")));
 
         assertThat(notifService.checkPlantStates()).hasSize(1);
+    }
+
+    @Test
+    void checkPlantStates_shouldLookBackOverTheRetentionPeriod_whenCheckingDuplicates() {
+        givenPlantsToCheck();
+
+        notifService.checkPlantStates();
+
+        ArgumentCaptor<LocalDateTime> since = ArgumentCaptor.captor();
+        verify(notificationDAO).findKeysCreatedSince(since.capture());
+        assertThat(since.getValue()).isBefore(LocalDateTime.now().minusDays(29));
+        assertThat(since.getValue()).isAfter(LocalDateTime.now().minusDays(32));
+    }
+
+    @Test
+    void checkPlantStates_shouldNotifyOnce_whenTwoPlantsOfSameVarietyAreDueInTheSameRun() {
+        int currentMonth = LocalDate.now().getMonthValue();
+        givenPlantsToCheck(
+                plantToCheck(1L, PlantState.A_PLANTER, null, currentMonth, currentMonth, 8),
+                plantToCheck(2L, PlantState.A_PLANTER, null, currentMonth, currentMonth, 8));
+
+        List<NotifDTO> result = notifService.checkPlantStates();
+
+        assertThat(result).hasSize(1);
+        assertThat(savedNotifications()).hasSize(1);
     }
 
     @Test
@@ -174,15 +202,46 @@ class NotifServiceTest {
     }
 
     @Test
-    void getNotificationsByUser_shouldReturnDTOsForEveryNotificationOfUser() {
+    void getNotificationsByUser_shouldReturnDTOsOfRequestedPage_newestFirst() {
         Notification notification = new Notification("Plante Tomate à Planter", "A_PLANTER", LocalDateTime.now(), USER_EMAIL);
-        when(notificationDAO.findByUserEmailOrderByCreatedAtDesc(USER_EMAIL)).thenReturn(List.of(notification));
+        when(notificationDAO.findByUserEmail(eq(USER_EMAIL), any(Pageable.class))).thenReturn(List.of(notification));
 
-        List<NotifDTO> result = notifService.getNotificationsByUser(USER_EMAIL);
+        List<NotifDTO> result = notifService.getNotificationsByUser(USER_EMAIL, 2, 20);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).message()).isEqualTo("Plante Tomate à Planter");
         assertThat(result.get(0).isRead()).isFalse();
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.captor();
+        verify(notificationDAO).findByUserEmail(eq(USER_EMAIL), pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isEqualTo(2);
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(20);
+        assertThat(pageable.getValue().getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+    }
+
+    @Test
+    void getNotificationsByUser_shouldClampPageAndSize() {
+        when(notificationDAO.findByUserEmail(eq(USER_EMAIL), any(Pageable.class))).thenReturn(List.of());
+
+        notifService.getNotificationsByUser(USER_EMAIL, -3, 100000);
+        notifService.getNotificationsByUser(USER_EMAIL, 0, 0);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.captor();
+        verify(notificationDAO, times(2)).findByUserEmail(eq(USER_EMAIL), pageable.capture());
+        assertThat(pageable.getAllValues()).extracting(Pageable::getPageNumber).containsExactly(0, 0);
+        assertThat(pageable.getAllValues()).extracting(Pageable::getPageSize).containsExactly(100, 1);
+    }
+
+    @Test
+    void purgeExpiredNotifications_shouldDeleteNotificationsOlderThanRetentionPeriod() {
+        when(notificationDAO.purgeCreatedBefore(any(LocalDateTime.class))).thenReturn(3);
+
+        int purged = notifService.purgeExpiredNotifications();
+
+        assertThat(purged).isEqualTo(3);
+        ArgumentCaptor<LocalDateTime> cutoff = ArgumentCaptor.captor();
+        verify(notificationDAO).purgeCreatedBefore(cutoff.capture());
+        assertThat(cutoff.getValue()).isBefore(LocalDateTime.now().minusDays(29));
+        assertThat(cutoff.getValue()).isAfter(LocalDateTime.now().minusDays(31));
     }
 
     @Test
