@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import logo from '../assets/logo.png'
+import userIcon from '../assets/user.png'
 import { usePageTitleState } from '../composables/usePageTitle.js'
 
 const route = useRoute()
@@ -18,7 +19,9 @@ const pageTitle = computed(() => dynamicTitle.value ?? route.meta.title ?? '')
 
     <span class="app-header-title">{{ pageTitle }}</span>
 
-    <RouterLink :to="{ name: 'profile' }" class="btn app-header-account">Mon compte</RouterLink>
+    <RouterLink :to="{ name: 'profile' }" class="app-header-account" title="Mon compte" aria-label="Mon compte">
+      <img :src="userIcon" alt="" />
+    </RouterLink>
   </header>
 </template>
 
@@ -49,6 +52,14 @@ const pageTitle = computed(() => dynamicTitle.value ?? route.meta.title ?? '')
 }
 
 .app-header-account {
+  display: inline-flex;
   justify-self: end;
+  border-radius: 50%;
+}
+
+.app-header-account img {
+  height: 44px;
+  width: 44px;
+  display: block;
 }
 </style>

@@ -37,6 +37,12 @@ onMounted(async () => {
     <p v-else>Chargement…</p>
 
     <RouterLink v-if="profile" class="btn" :to="{ name: 'profile-edit' }">Modifier le profil</RouterLink>
+
+    <p class="credits">
+      <a href="https://www.flaticon.com/fr/icones-gratuites/avatar-homme" title="avatar homme icônes" target="_blank" rel="noopener noreferrer">Avatar homme icônes créées par Smashicons - Flaticon</a>
+      <br />
+      <a href="https://www.flaticon.com/fr/icones-gratuites/modifier" title="modifier icônes" target="_blank" rel="noopener noreferrer">Modifier icônes créées par Karacis - Flaticon</a>
+    </p>
   </div>
 </template>
 
@@ -60,5 +66,10 @@ dd {
 a.btn {
   display: inline-block;
   margin-top: 16px;
+}
+
+.credits {
+  margin-top: 32px;
+  font-size: 0.8rem;
 }
 </style>

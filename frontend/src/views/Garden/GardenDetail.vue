@@ -16,6 +16,7 @@ import { usePlantImage } from '../../composables/usePlantImage.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
+import editIcon from '../../assets/edit.png'
 
 const DEFAULT_PLANT_RADIUS = 30
 
@@ -260,8 +261,13 @@ async function removeSelectedPlant() {
           <p v-else class="garden-score hint">Score d'association : aucune association détectée</p>
         </div>
         <nav class="garden-nav">
-          <RouterLink :to="{ name: 'garden-structure', params: { id: gardenId } }">
-            Structure du potager
+          <RouterLink
+            :to="{ name: 'garden-structure', params: { id: gardenId } }"
+            class="edit-structure"
+            title="Structure du potager"
+            aria-label="Structure du potager"
+          >
+            <img :src="editIcon" alt="" />
           </RouterLink>
           <RouterLink :to="{ name: 'garden-list' }">
             Mes potagers
@@ -345,6 +351,17 @@ async function removeSelectedPlant() {
 </template>
 
 <style scoped>
+.edit-structure {
+  display: inline-flex;
+  align-items: center;
+}
+
+.edit-structure img {
+  height: 32px;
+  width: 32px;
+  display: block;
+}
+
 .palette {
   margin-bottom: 8px;
   gap: 4px;
