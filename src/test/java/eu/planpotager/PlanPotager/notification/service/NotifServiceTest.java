@@ -150,14 +150,13 @@ class NotifServiceTest {
     }
 
     @Test
-    void setNotifAsRead_shouldMarkNotificationAsRead_andPersist() {
+    void setNotifAsRead_shouldMarkNotificationAsRead() {
         Notification notification = new Notification("Plante Tomate à Planter", "A_PLANTER", LocalDateTime.now(), USER_EMAIL);
         when(notificationDAO.findById(1L)).thenReturn(Optional.of(notification));
 
         notifService.setNotifAsRead(1L);
 
         assertThat(notification.getRead()).isTrue();
-        verify(notificationDAO).save(notification);
     }
 
     @Test

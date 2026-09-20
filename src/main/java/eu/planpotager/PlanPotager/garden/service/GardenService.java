@@ -23,8 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class GardenService {
 
     private static final int ASSOCIATION_RADIUS_CM = 100;
@@ -56,6 +58,7 @@ public class GardenService {
         return toGardenDTO(garden);
     }
 
+    @Transactional(readOnly = true)
     public List<GardenDTO> getGardensByUser(String userEmail) {
         List<Garden> gardens = gardenDAO.findByUserEmail(userEmail);
         List<GardenDTO> gardenDTOs = gardens.stream()
@@ -64,16 +67,17 @@ public class GardenService {
         return gardenDTOs;
     }
 
+    @Transactional(readOnly = true)
     public GardenDTO getGardenById(String userEmail, Long gardenId) {
         Garden garden = gardenDAO.findById(gardenId)
             .orElseThrow(() -> new IllegalArgumentException("Garden not found"));
 
         checkUserAccess(userEmail, garden);
 
-        List<AssociationLinkDTO> associationLinks = recomputeAssociationScore(garden);
-        gardenDAO.save(garden);
+        // Lecture seule : le score persiste deja depuis la derniere modification du potager, on ne calcule que les liens a afficher.
+        AssociationScore association = computeAssociationScore(garden);
 
-        return toGardenDTO(garden, associationLinks);
+        return toGardenDTO(garden, association.score(), association.links());
     }
 
     public GardenDTO updateGarden(String userEmail, Long gardenId, String name, Double longitude, Double latitude) {
@@ -85,7 +89,6 @@ public class GardenService {
         garden.setName(name);
         garden.setLongitude(longitude);
         garden.setLatitude(latitude);
-        gardenDAO.save(garden);
 
         return toGardenDTO(garden);
     }
@@ -110,11 +113,13 @@ public class GardenService {
 
         GardenPlant gardenPlant = garden.addPlant(plant, x, y);
         recomputeAssociationScore(garden);
-        gardenDAO.save(garden);
+        // IDENTITY : l'id de la plante n'est attribue qu'a l'insertion, or on le renvoie avant le commit.
+        gardenDAO.flush();
 
         return toGardenPlantDTO(gardenPlant);
     }
 
+    @Transactional(readOnly = true)
     public GardenPlantDTO getPlantCurrentPosition(String userEmail, Long gardenId, Long gardenPlantId) {
         Garden garden = gardenDAO.findById(gardenId)
             .orElseThrow(() -> new IllegalArgumentException("Garden not found"));
@@ -133,7 +138,6 @@ public class GardenService {
 
         garden.updatePlantPosition(gardenPlantId, newX, newY);
         List<AssociationLinkDTO> associationLinks = recomputeAssociationScore(garden);
-        gardenDAO.save(garden);
 
         return toGardenDTO(garden, associationLinks);
     }
@@ -142,6 +146,7 @@ public class GardenService {
         return List.of(PlantState.values());
     }
 
+    @Transactional(readOnly = true)
     public List<GardenPlantDTO> getGardenPlants(String userEmail, Long gardenId) {
         Garden garden = gardenDAO.findById(gardenId)
             .orElseThrow(() -> new IllegalArgumentException("Garden not found"));
@@ -153,6 +158,7 @@ public class GardenService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<AreaDTO> getGardenAreas(String userEmail, Long gardenId) {
         Garden garden = gardenDAO.findById(gardenId)
             .orElseThrow(() -> new IllegalArgumentException("Garden not found"));
@@ -173,7 +179,6 @@ public class GardenService {
         garden.setPlantState(gardenPlantId, state);
 
         if (state != PlantState.RECOLTEE) {
-            gardenDAO.save(garden);
             return toGardenDTO(garden);
         }
 
@@ -182,7 +187,6 @@ public class GardenService {
         garden.removePlant(gardenPlantId);
 
         List<AssociationLinkDTO> associationLinks = recomputeAssociationScore(garden);
-        gardenDAO.save(garden);
         return toGardenDTO(garden, associationLinks);
     }
 
@@ -194,7 +198,6 @@ public class GardenService {
 
         garden.removePlant(gardenPlantId);
         List<AssociationLinkDTO> associationLinks = recomputeAssociationScore(garden);
-        gardenDAO.save(garden);
         return toGardenDTO(garden, associationLinks);
     }
 
@@ -217,7 +220,6 @@ public class GardenService {
         checkUserAccess(userEmail, existing.getGarden());
 
         existing.setPoints(points);
-        areaDAO.save(existing);
 
         return toAreaDTO(existing);
     }
@@ -246,12 +248,23 @@ public class GardenService {
     }
 
     private GardenDTO toGardenDTO(Garden garden, List<AssociationLinkDTO> associationLinks) {
+        return toGardenDTO(garden, garden.getScore(), associationLinks);
+    }
+
+    private GardenDTO toGardenDTO(Garden garden, Double score, List<AssociationLinkDTO> associationLinks) {
         return new GardenDTO(garden.getId(), garden.getName(), garden.getLongitude(), garden.getLatitude(),
-                garden.getScore(), associationLinks);
+                score, associationLinks);
+    }
+
+    // Le score est ecrit sur l'entite : Hibernate ne genere un UPDATE au commit que si sa valeur a change.
+    private List<AssociationLinkDTO> recomputeAssociationScore(Garden garden) {
+        AssociationScore association = computeAssociationScore(garden);
+        garden.setScore(association.score());
+        return association.links();
     }
 
     // Recalcule sur toutes les paires du potager (pas seulement celles touchant le dernier changement) pour eviter tout double comptage.
-    private List<AssociationLinkDTO> recomputeAssociationScore(Garden garden) {
+    private AssociationScore computeAssociationScore(Garden garden) {
         List<GardenPlant> gardenPlants = garden.getGardenPlants();
         List<AssociationLinkDTO> links = new ArrayList<>();
         int goodCount = 0;
@@ -283,9 +296,12 @@ public class GardenService {
         }
 
         int total = goodCount + badCount;
-        garden.setScore(total == 0 ? null : (double) goodCount / total * 10);
+        Double score = total == 0 ? null : (double) goodCount / total * 10;
 
-        return links;
+        return new AssociationScore(links, score);
+    }
+
+    private record AssociationScore(List<AssociationLinkDTO> links, Double score) {
     }
 
     private boolean withinAssociationRadius(GardenPlant a, GardenPlant b) {

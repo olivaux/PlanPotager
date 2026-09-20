@@ -7,8 +7,10 @@ import eu.planpotager.PlanPotager.registry.dao.VarietyDAO;
 import eu.planpotager.PlanPotager.registry.domain.Variety;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class PlantService {
 
     private final PlantDAO plantDAO;
@@ -40,6 +42,7 @@ public class PlantService {
         plantDAO.delete(plant);
     }
 
+    @Transactional(readOnly = true)
     public List<PlantDTO> getAvailablePlants(String userEmail) {
         return plantDAO.findByUserEmail(userEmail).stream()
                 .map(this::toPlantDTO)

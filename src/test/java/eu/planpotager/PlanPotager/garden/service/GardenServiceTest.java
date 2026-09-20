@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -134,7 +135,7 @@ class GardenServiceTest {
     }
 
     @Test
-    void getGardenById_shouldComputeFullScore_whenNearbyPlantsHaveGoodAssociation() {
+    void getGardenById_shouldComputeFullScore_withoutWritingIt_whenNearbyPlantsHaveGoodAssociation() {
         User user = new User(USER_EMAIL);
         Garden garden = new Garden("Potager du fond", 2.35, 48.85, user);
         garden.addPlant(plantOfSpecies("Tomate"), 0, 0);
@@ -148,7 +149,8 @@ class GardenServiceTest {
         assertThat(result.score()).isEqualTo(10.0);
         assertThat(result.associationLinks()).hasSize(1);
         assertThat(result.associationLinks().get(0).positive()).isTrue();
-        verify(gardenDAO).save(garden);
+        assertThat(garden.getScore()).isNull();
+        verify(gardenDAO, never()).save(any(Garden.class));
     }
 
     @Test
@@ -218,18 +220,17 @@ class GardenServiceTest {
     }
 
     @Test
-    void updateGarden_shouldUpdateNameAndCoordinates_andPersist() {
+    void updateGarden_shouldUpdateNameAndCoordinates() {
         User user = new User(USER_EMAIL);
         Garden garden = new Garden("Ancien nom", 0.0, 0.0, user);
         when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
-        when(gardenDAO.save(garden)).thenReturn(garden);
 
         GardenDTO result = gardenService.updateGarden(USER_EMAIL, 1L, "Nouveau nom", 2.35, 48.85);
 
         assertThat(result.name()).isEqualTo("Nouveau nom");
         assertThat(result.longitude()).isEqualTo(2.35);
         assertThat(result.latitude()).isEqualTo(48.85);
-        verify(gardenDAO).save(garden);
+        assertThat(garden.getName()).isEqualTo("Nouveau nom");
     }
 
     @Test
@@ -264,7 +265,7 @@ class GardenServiceTest {
     }
 
     @Test
-    void addPlantToGarden_shouldDelegateToGardenEntity_andPersist() {
+    void addPlantToGarden_shouldDelegateToGardenEntity_andFlushToGetPlantId() {
         User user = new User(USER_EMAIL);
         Garden garden = mock(Garden.class);
         Plant plantRef = new Plant(cherryTomatoVariety(), "Graines du Midi", USER_EMAIL);
@@ -273,7 +274,6 @@ class GardenServiceTest {
         when(garden.getUser()).thenReturn(user);
         when(plantDAO.findById(42L)).thenReturn(Optional.of(plantRef));
         when(garden.addPlant(plantRef, 10, 20)).thenReturn(createdGardenPlant);
-        when(gardenDAO.save(garden)).thenReturn(garden);
         when(createdGardenPlant.getId()).thenReturn(7L);
         when(createdGardenPlant.getX()).thenReturn(10);
         when(createdGardenPlant.getY()).thenReturn(20);
@@ -283,14 +283,14 @@ class GardenServiceTest {
         GardenPlantDTO result = gardenService.addPlantToGarden(USER_EMAIL, 1L, 42L, 10, 20);
 
         verify(garden).addPlant(plantRef, 10, 20);
-        verify(gardenDAO).save(garden);
+        verify(gardenDAO).flush();
         assertThat(result.id()).isEqualTo(7L);
         assertThat(result.x()).isEqualTo(10);
         assertThat(result.y()).isEqualTo(20);
     }
 
     @Test
-    void addPlantToGarden_shouldRecomputeAndPersistAssociationScore() {
+    void addPlantToGarden_shouldRecomputeAssociationScore() {
         User user = new User(USER_EMAIL);
         Garden garden = mock(Garden.class);
         Plant tomatoRef = plantOfSpecies("Tomate");
@@ -310,12 +310,10 @@ class GardenServiceTest {
         when(createdTomatoPlant.getPlant()).thenReturn(tomatoRef);
         when(registryService.getAssociation("Basilic", "Tomate"))
                 .thenReturn(Optional.of(new AssociationDTO("Basilic", "Tomate", true)));
-        when(gardenDAO.save(garden)).thenReturn(garden);
 
         gardenService.addPlantToGarden(USER_EMAIL, 1L, 42L, 0, 0);
 
         verify(garden).setScore(10.0);
-        verify(gardenDAO).save(garden);
     }
 
     @Test
@@ -362,18 +360,16 @@ class GardenServiceTest {
     }
 
     @Test
-    void changePlantPosition_shouldUpdatePositionOnEntity_andPersist() {
+    void changePlantPosition_shouldUpdatePositionOnEntity() {
         User user = new User(USER_EMAIL);
         Garden garden = mock(Garden.class);
         when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
         when(garden.getUser()).thenReturn(user);
-        when(gardenDAO.save(garden)).thenReturn(garden);
         when(garden.getId()).thenReturn(1L);
 
         GardenDTO result = gardenService.changePlantPosition(USER_EMAIL, 1L, 42L, 30, 40);
 
         verify(garden).updatePlantPosition(42L, 30, 40);
-        verify(gardenDAO).save(garden);
         assertThat(result.id()).isEqualTo(1L);
     }
 
@@ -396,13 +392,11 @@ class GardenServiceTest {
         when(basilPlant.getPlant()).thenReturn(basilRef);
         when(registryService.getAssociation("Tomate", "Basilic"))
                 .thenReturn(Optional.of(new AssociationDTO("Tomate", "Basilic", true)));
-        when(gardenDAO.save(garden)).thenReturn(garden);
 
         gardenService.changePlantPosition(USER_EMAIL, 1L, 42L, 50, 0);
 
         verify(garden).updatePlantPosition(42L, 50, 0);
         verify(garden).setScore(10.0);
-        verify(gardenDAO).save(garden);
     }
 
     @Test
@@ -425,18 +419,16 @@ class GardenServiceTest {
     }
 
     @Test
-    void setPlantState_shouldUpdateStateOnEntity_andPersist() {
+    void setPlantState_shouldUpdateStateOnEntity() {
         User user = new User(USER_EMAIL);
         Garden garden = mock(Garden.class);
         when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
         when(garden.getUser()).thenReturn(user);
-        when(gardenDAO.save(garden)).thenReturn(garden);
         when(garden.getId()).thenReturn(1L);
 
         GardenDTO result = gardenService.setPlantState(USER_EMAIL, 1L, 42L, PlantState.PLANTEE);
 
         verify(garden).setPlantState(42L, PlantState.PLANTEE);
-        verify(gardenDAO).save(garden);
         verifyNoInteractions(plantArchiveDAO);
         assertThat(result.id()).isEqualTo(1L);
     }
@@ -464,7 +456,6 @@ class GardenServiceTest {
         when(harvestedPlant.getPlant()).thenReturn(plantOfSpecies("Tomate"));
         when(harvestedPlant.getGarden()).thenReturn(garden);
         when(garden.getGardenPlants()).thenReturn(List.of());
-        when(gardenDAO.save(garden)).thenReturn(garden);
         when(garden.getId()).thenReturn(1L);
 
         GardenDTO result = gardenService.setPlantState(USER_EMAIL, 1L, 42L, PlantState.RECOLTEE);
@@ -472,23 +463,20 @@ class GardenServiceTest {
         verify(garden).setPlantState(42L, PlantState.RECOLTEE);
         verify(plantArchiveDAO).save(any(PlantArchive.class));
         verify(garden).removePlant(42L);
-        verify(gardenDAO).save(garden);
         assertThat(result.id()).isEqualTo(1L);
     }
 
     @Test
-    void removePlantFromGarden_shouldRemovePlant_andPersist() {
+    void removePlantFromGarden_shouldRemovePlant() {
         User user = new User(USER_EMAIL);
         Garden garden = mock(Garden.class);
         when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
         when(garden.getUser()).thenReturn(user);
-        when(gardenDAO.save(garden)).thenReturn(garden);
         when(garden.getId()).thenReturn(1L);
 
         GardenDTO result = gardenService.removePlantFromGarden(USER_EMAIL, 1L, 42L);
 
         verify(garden).removePlant(42L);
-        verify(gardenDAO).save(garden);
         assertThat(result.id()).isEqualTo(1L);
     }
 
@@ -501,13 +489,11 @@ class GardenServiceTest {
         when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
         when(garden.getUser()).thenReturn(user);
         when(garden.getGardenPlants()).thenReturn(List.of(remainingTomatoPlant));
-        when(gardenDAO.save(garden)).thenReturn(garden);
 
         gardenService.removePlantFromGarden(USER_EMAIL, 1L, 42L);
 
         verify(garden).removePlant(42L);
         verify(garden).setScore(null);
-        verify(gardenDAO).save(garden);
         verifyNoInteractions(registryService);
     }
 
@@ -549,18 +535,16 @@ class GardenServiceTest {
     }
 
     @Test
-    void updateArea_shouldUpdatePointsOnExistingArea_andPersist() {
+    void updateArea_shouldUpdatePointsOnExistingArea() {
         User user = new User(USER_EMAIL);
         Garden garden = new Garden("Potager du fond", 2.35, 48.85, user);
         Area existing = new Area(garden, 0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0);
         when(areaDAO.findById(5L)).thenReturn(Optional.of(existing));
-        when(areaDAO.save(existing)).thenReturn(existing);
         AreaDTO newPoints = new AreaDTO(5L, 1.0, 1.0, 11.0, 1.0, 11.0, 11.0, 1.0, 11.0);
 
         AreaDTO result = gardenService.updateArea(USER_EMAIL, 1L, 5L, newPoints);
 
         assertThat(result.leftUpX()).isEqualTo(1.0);
-        verify(areaDAO).save(existing);
     }
 
     @Test

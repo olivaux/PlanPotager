@@ -42,16 +42,16 @@ class ProfileServiceTest {
     }
 
     @Test
-    void updateProfile_shouldSaveUpdatedUnitAndLanguage() {
+    void updateProfile_shouldUpdateUnitAndLanguageOnStoredUser() {
         User stored = new User(EMAIL);
         when(userDAO.findByEmail(EMAIL)).thenReturn(Optional.of(stored));
-        when(userDAO.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserDTO result = profileService.updateProfile(EMAIL, "in", "en");
 
         assertThat(result.unit()).isEqualTo("in");
         assertThat(result.language()).isEqualTo("en");
-        verify(userDAO).save(stored);
+        assertThat(stored.getUnit()).isEqualTo("in");
+        assertThat(stored.getLanguage()).isEqualTo("en");
     }
 
     @Test

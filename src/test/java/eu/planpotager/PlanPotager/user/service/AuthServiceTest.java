@@ -64,15 +64,13 @@ class AuthServiceTest {
         String provider = "Provider Name";
         User existingUser = new User(email);
         when(userDAO.findByEmail(email)).thenReturn(Optional.of(existingUser));
-        when(userDAO.save(org.mockito.ArgumentMatchers.any(User.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
 
         UserDTO result = authService.updateProvider(email, provider, providerId);
 
         assertThat(result.email()).isEqualTo(email);
         assertThat(result.providerId()).isEqualTo(providerId);
         assertThat(result.provider()).isEqualTo(provider);
-        verify(userDAO).save(org.mockito.ArgumentMatchers.any(User.class));
+        assertThat(existingUser.getProviderId()).isEqualTo(providerId);
     }
 }
 

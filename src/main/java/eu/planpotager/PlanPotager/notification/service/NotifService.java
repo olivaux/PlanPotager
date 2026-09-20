@@ -14,8 +14,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class NotifService {
 
     private static final String TYPE_TO_PLANT = "A_PLANTER";
@@ -29,6 +31,7 @@ public class NotifService {
         this.gardenDAO = gardenDAO;
     }
 
+    @Transactional(readOnly = true)
     public List<NotifDTO> getNotificationsByUser(String userEmail) {
         return notificationDAO.findByUserEmailOrderByCreatedAtDesc(userEmail).stream()
                 .map(this::toNotifDTO)
@@ -40,7 +43,6 @@ public class NotifService {
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
 
         notification.setRead(true);
-        notificationDAO.save(notification);
     }
 
     public List<NotifDTO> checkPlantStates() {
