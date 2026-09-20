@@ -56,7 +56,7 @@ class PlantControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.variety").value("Tomate Cerise"))
-                .andExpect(jsonPath("$.supplier").value("Graines du Midi"));
+                .andExpect(jsonPath("$.comment").value("Graines du Midi"));
     }
 
     @Test

@@ -31,7 +31,7 @@ public class PlantController {
     @PostMapping
     public ResponseEntity<PlantDTO> addPlant(@RequestBody AddPlantRequest request,
             @AuthenticationPrincipal OidcUser principal) {
-        PlantDTO plant = plantService.addPlant(request.variety(), request.supplier(), principal.getEmail());
+        PlantDTO plant = plantService.addPlant(request.variety(), request.comment(), principal.getEmail());
         return ResponseEntity.status(HttpStatus.CREATED).body(plant);
     }
 

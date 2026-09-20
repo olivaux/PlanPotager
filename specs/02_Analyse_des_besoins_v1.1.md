@@ -399,14 +399,14 @@ participant PlantRepository as pP
 
 u -> uiP : setSpecies
 u -> uiP : setVariety
-u -> uiP : setSupplier
+u -> uiP : setComment
 uiP -> uiP : checkData()
 
 uiP -> wfP : AddPlant()
 
 wfP -> enP : setSpecies()
 wfP -> enP : setVariety()
-wfP -> enP : setSupplier()
+wfP -> enP : setComment()
 return plant
 
 wfP -> pP : save(plant)
@@ -424,7 +424,7 @@ skin rose
 class AddPlantUI <<boundary>> {
   + setSpecies(species : String) : void
   + setVariety(variety : String) : void
-  + setSupplier(supplier : String) : void
+  + setComment(comment : String) : void
   + checkData() : boolean
   + AddPlant() : void
 }
@@ -436,10 +436,10 @@ class AddPlantWorkFlow <<control>> {
 class Plant <<entity>> {
   - species : String
   - variety : String
-  - supplier : String
+  - comment : String
   + setSpecies(species : String) : void
   + setVariety(variety : String) : void
-  + setSupplier(supplier : String) : void
+  + setComment(comment : String) : void
 }
 
 class PlantRepository <<life cyle>> {
@@ -615,7 +615,7 @@ class Garden <<entity>> {
 class Plant <<entity>> {
   - species : String
   - variety : String
-  - supplier : String
+  - comment : String
 }
 
 class Plant {
@@ -845,7 +845,7 @@ class PlantWorkFlow <<control>> {
 class Plant <<entity>> {
   - species : String
   - variety : String
-  - supplier : String
+  - comment : String
   + setPlant(plant : Plant) : boolean
 }
 
@@ -1029,7 +1029,7 @@ class Garden <<entity>> {
 class Plant <<entity>> {
   - species : String
   - variety : String
-  - supplier : String
+  - comment : String
   - state : PlantState
 }
 
@@ -1263,7 +1263,7 @@ class PlantWorkFlow <<control>> {
 class Plant <<entity>> {
   - species : String
   - variety : String
-  - supplier : String
+  - comment : String
   + getArticles() : List<Article>
 }
 
@@ -1310,13 +1310,13 @@ class Plant <<entity>> {
   - id : int
   - species : String
   - variety : String
-  - supplier : String
+  - comment : String
   - state : PlantState
   - x : int
   - y : int
   + setSpecies(species : String) : void
   + setVariety(variety : String) : void
-  + setSupplier(supplier : String) : void
+  + setComment(comment : String) : void
   + setPlant(plant : Plant) : boolean
   + getArticles() : List<Article>
 }
@@ -1384,13 +1384,13 @@ class Plant <<entity>> {
   - id : int
   - species : String
   - variety : String
-  - supplier : String
+  - comment : String
   - state : PlantState
   - x : int
   - y : int
   + setSpecies(species : String) : void
   + setVariety(variety : String) : void
-  + setSupplier(supplier : String) : void
+  + setComment(comment : String) : void
   + setPlant(plant : Plant) : boolean
   + getArticles() : List<Article>
 }
@@ -1548,7 +1548,7 @@ class ProfileWorkFlow <<control>> {
 class AddPlantUI <<boundary>> {
   + setSpecies(species : String) : void
   + setVariety(variety : String) : void
-  + setSupplier(supplier : String) : void
+  + setComment(comment : String) : void
   + checkData() : boolean
   + AddPlant() : void
 }

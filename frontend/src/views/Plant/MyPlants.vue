@@ -47,7 +47,7 @@ async function confirmRemove(plantId) {
           <img :src="resolveSpeciesImageUrl(plant.species)" :alt="plant.species" class="species-thumb" />
           <span>
             <strong>{{ plant.variety }}</strong>
-            <span v-if="plant.supplier" class="supplier"> · {{ plant.supplier }}</span>
+            <span v-if="plant.comment" class="comment"> · {{ plant.comment }}</span>
           </span>
         </span>
         <button type="button" class="btn" @click="confirmRemove(plant.id)">Supprimer</button>
@@ -79,7 +79,7 @@ ul {
   object-fit: contain;
 }
 
-.supplier {
+.comment {
   color: var(--text);
 }
 </style>

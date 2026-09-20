@@ -1,5 +1,5 @@
 package eu.planpotager.PlanPotager.plant.dto;
 
-public record AddPlantRequest(String variety, String supplier) {
+public record AddPlantRequest(String variety, String comment) {
 
 }

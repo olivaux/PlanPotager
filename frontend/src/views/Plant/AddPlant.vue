@@ -15,7 +15,7 @@ const varietiesError = ref(null)
 const loadingVarieties = ref(false)
 
 const selectedVariety = ref('')
-const supplier = ref('')
+const comment = ref('')
 
 const submitting = ref(false)
 const submitError = ref(null)
@@ -60,10 +60,10 @@ async function submit() {
   submitted.value = false
 
   try {
-    await addPlant({ variety: selectedVariety.value, supplier: supplier.value })
+    await addPlant({ variety: selectedVariety.value, comment: comment.value })
     submitted.value = true
     selectedVariety.value = ''
-    supplier.value = ''
+    comment.value = ''
   } catch {
     submitError.value = "Impossible d'ajouter cette plante."
   } finally {
@@ -109,8 +109,8 @@ async function submit() {
       <p v-if="varietiesError" class="error">{{ varietiesError }}</p>
 
       <label class="field">
-        Fournisseur
-        <input v-model="supplier" type="text" />
+        Remarque
+        <input v-model="comment" type="text" />
       </label>
 
       <button type="submit" class="btn btn-primary" :disabled="!canSubmit">Ajouter</button>

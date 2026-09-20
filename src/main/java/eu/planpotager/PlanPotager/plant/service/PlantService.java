@@ -21,11 +21,11 @@ public class PlantService {
         this.varietyDAO = varietyDAO;
     }
 
-    public PlantDTO addPlant(String varietyName, String supplier, String userEmail) {
+    public PlantDTO addPlant(String varietyName, String comment, String userEmail) {
         Variety variety = varietyDAO.findById(varietyName)
                 .orElseThrow(() -> new IllegalArgumentException("Variety not found"));
 
-        Plant plant = new Plant(variety, supplier, userEmail);
+        Plant plant = new Plant(variety, comment, userEmail);
 
         plantDAO.save(plant);
         return toPlantDTO(plant);
@@ -52,7 +52,7 @@ public class PlantService {
     private PlantDTO toPlantDTO(Plant plant) {
         Variety variety = plant.getVariety();
 
-        return new PlantDTO(plant.getId(), variety.getName(), plant.getSupplier(),
+        return new PlantDTO(plant.getId(), variety.getName(), plant.getComment(),
                 variety.getSpecies().getName(), variety.getEffectiveRadius());
     }
 }

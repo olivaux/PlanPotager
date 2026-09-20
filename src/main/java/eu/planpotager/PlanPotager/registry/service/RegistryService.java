@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.comment;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -106,10 +106,10 @@ public class RegistryService {
     // Chargement paresseux, thread-safe, effectue une seule fois.
     private static final class Lazy<T> {
 
-        private final Supplier<T> loader;
+        private final comment<T> loader;
         private volatile T value;
 
-        Lazy(Supplier<T> loader) {
+        Lazy(comment<T> loader) {
             this.loader = loader;
         }
 

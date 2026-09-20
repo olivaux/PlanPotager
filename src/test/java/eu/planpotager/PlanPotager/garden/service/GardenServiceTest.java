@@ -75,7 +75,7 @@ class GardenServiceTest {
         Family family = new Family("Famille", new Type("Legume"));
         Species species = new Species(speciesName, 0.3, 3, 5, 2, family);
         Variety variety = new Variety(speciesName + " Variete", 0.2, 3, 5, 2, species);
-        return new Plant(variety, "Fournisseur", USER_EMAIL);
+        return new Plant(variety, "Remarque", USER_EMAIL);
     }
 
     @Test

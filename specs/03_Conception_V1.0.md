@@ -153,7 +153,7 @@
 | Spring Data JPA | Surcouche Spring simplifiant l'utilisation de JPA via des repositories déclarés                                                                                                   |
 | @Scheduled      | Annotation Spring permettant l'exécution planifiée de méthodes (tâches de fond, ici pour les notifications)                                                                     |
 | GardenPlant     | Entité de jointure entre Garden et Plant, portant les coordonnées (x, y) et l'état de la plante dans un potager donné                                                           |
-| Plant           | Plante appartenant à un utilisateur. Stocke uniquement variety (nom de la variété choisie dans le registre) et supplier. Le champ species n'est pas dupliqué ici car il est dérivable via Variety → Species dans le package Registry. **Divergence LDD** : en SQL, la table SeedPacket joue ce rôle ; la table Plant SQL correspond à GardenPlant Java (instance placée dans le potager). |
+| Plant           | Plante appartenant à un utilisateur. Stocke uniquement variety (nom de la variété choisie dans le registre) et comment. Le champ species n'est pas dupliqué ici car il est dérivable via Variety → Species dans le package Registry. **Divergence LDD** : en SQL, la table SeedPacket joue ce rôle ; la table Plant SQL correspond à GardenPlant Java (instance placée dans le potager). |
 | GardenPlant     | Instance d'une plante placée dans un potager, portant les coordonnées (x, y) et l'état. **Divergence LDD** : la table SQL Plant porte ce concept (via position_ GEOMETRY). L'entité GardenPlant est une décomposition Java délibérée pour séparer le "paquet de graines" de son "placement physique". |
 | Notification    | **Divergence LDD partielle** : le LDD utilise une PK composite (email, notifId) et ne définit que message et isRead. Le modèle Java conserve une PK surrogate (@Id id) et ajoute type et createdAt, utiles à l'affichage et au tri applicatif. |
 
@@ -1036,9 +1036,9 @@ svcR --> ctrlR : List<VarietyDTO>
 ctrlR --> vue : 200 OK\n{ List<VarietyDTO> }
 
 u -> vue : sélectionne une variété, saisit fournisseur et soumet
-vue -> ctrl : POST /api/plant\n{ variety, supplier }
-ctrl -> svc : addPlant(variety, supplier, userId)
-svc -> en : new Plant(variety, supplier)
+vue -> ctrl : POST /api/plant\n{ variety, comment }
+ctrl -> svc : addPlant(variety, comment, userId)
+svc -> en : new Plant(variety, comment)
 return Plant
 svc -> repo : save(plant)
 return Plant
@@ -1075,18 +1075,18 @@ interface VarietyDAO <<@Repository>> {
 }
 
 class PlantController <<@RestController>> {
-  + addPlant(@RequestBody variety : String, supplier : String) : ResponseEntity<PlantDTO>
+  + addPlant(@RequestBody variety : String, comment : String) : ResponseEntity<PlantDTO>
 }
 
 class PlantService <<@Service>> {
-  + addPlant(variety : String, supplier : String, userEmail : String) : PlantDTO
+  + addPlant(variety : String, comment : String, userEmail : String) : PlantDTO
 }
 
 class Plant <<@Entity>> {
   @Id @GeneratedValue
   - id : Long
   - variety : String
-  - supplier : String
+  - comment : String
 }
 
 interface PlantDAO <<@Repository>> {
@@ -1161,7 +1161,7 @@ class Plant <<@Entity>> {
   @Id @GeneratedValue
   - id : Long
   - variety : String
-  - supplier : String
+  - comment : String
 }
 
 interface PlantDAO <<@Repository>> {
@@ -1566,7 +1566,7 @@ class Plant <<@Entity>> {
   @Id @GeneratedValue
   - id : Long
   - variety : String
-  - supplier : String
+  - comment : String
 }
 
 interface PlantDAO <<@Repository>> {
@@ -2682,7 +2682,7 @@ class Plant <<@Entity>> {
   @Id @GeneratedValue
   - id : Long
   - variety : String
-  - supplier : String
+  - comment : String
   @ManyToOne
   - user : User
 }
@@ -2896,7 +2896,7 @@ class RegistryService <<@Service>> {
 }
 
 class PlantService <<@Service>> {
-  + addPlant(variety : String, supplier : String, userEmail : String) : PlantDTO
+  + addPlant(variety : String, comment : String, userEmail : String) : PlantDTO
   + getAvailablePlants(userEmail : String) : List<PlantDTO>
   + removePlant(plantId : Long, userEmail : String) : void
 }
@@ -2979,7 +2979,7 @@ class RegistryController <<@RestController>> {
 }
 
 class PlantController <<@RestController>> {
-  POST   + addPlant(@RequestBody variety : String, supplier : String) : ResponseEntity<PlantDTO>
+  POST   + addPlant(@RequestBody variety : String, comment : String) : ResponseEntity<PlantDTO>
   GET    + getAvailablePlants() : ResponseEntity<List<PlantDTO>>
   DELETE + removePlant(@PathVariable plantId : Long) : ResponseEntity<Void>
 }

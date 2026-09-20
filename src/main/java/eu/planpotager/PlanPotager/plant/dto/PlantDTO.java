@@ -1,5 +1,5 @@
 package eu.planpotager.PlanPotager.plant.dto;
 
-public record PlantDTO(Long id, String variety, String supplier, String species, Double radius) {
+public record PlantDTO(Long id, String variety, String comment, String species, Double radius) {
 
 }

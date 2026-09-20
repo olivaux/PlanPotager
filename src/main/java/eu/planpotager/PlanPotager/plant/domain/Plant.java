@@ -29,7 +29,7 @@ public class Plant {
     private Variety variety;
 
     @Column(name = "brand")
-    private String supplier;
+    private String comment;
 
     @Column(name = "email")
     private String userEmail;
@@ -37,9 +37,9 @@ public class Plant {
     protected Plant() {
     }
 
-    public Plant(Variety variety, String supplier, String userEmail) {
+    public Plant(Variety variety, String comment, String userEmail) {
         this.variety = variety;
-        this.supplier = supplier;
+        this.comment = comment;
         this.userEmail = userEmail;
     }
 
@@ -51,8 +51,8 @@ public class Plant {
         return variety;
     }
 
-    public String getSupplier() {
-        return supplier;
+    public String getComment() {
+        return comment;
     }
 
     public String getUserEmail() {
