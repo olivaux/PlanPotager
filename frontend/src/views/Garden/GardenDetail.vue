@@ -362,7 +362,9 @@ async function removeSelectedPlant() {
                     <span class="palette-text">
                       <span class="palette-species">{{ plant.species }}</span>
                       <span class="palette-variety">{{ plant.variety }}</span>
-                      <span class="palette-comment">{{ plant.comment }}</span>
+                      <span class="palette-comment" :class="{ empty: !plant.comment }">
+                        {{ plant.comment || 'Aucune remarque' }}
+                      </span>
                     </span>
                   </li>
                 </ul>
@@ -471,6 +473,11 @@ async function removeSelectedPlant() {
 
 .palette-comment {
   font-size: 13px;
+}
+
+.palette-comment.empty {
+  font-style: italic;
+  opacity: 0.6;
 }
 
 .hint {
