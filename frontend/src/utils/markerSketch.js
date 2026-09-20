@@ -6,6 +6,11 @@
 
 export const PAPER_COLOR = '#f6efdc'
 
+// Survol (page structure) : l'element survole passe du noir au vert.
+export const HOVER_COLOR = '#2fbf4a'
+const HOVER_OUTLINE_COLORS = [HOVER_COLOR, 'rgba(47, 191, 74, 0.5)'] // un par passage de OUTLINE_PASSES
+const HOVER_AREA_FILL = 'rgba(47, 191, 74, 0.4)'
+
 const HATCH_COLOR = 'rgba(133, 84, 40, 0.8)' // semi-transparent : les traits qui se chevauchent foncent
 const HATCH_WIDTH = 8 // proche de l'ecart : les traits deformes se touchent et se recouvrent par endroits
 const HATCH_ANGLE = -Math.PI / 4
@@ -134,6 +139,7 @@ function buildOutlinePass(points, seed, passIndex) {
     let by = points[2 * ((e + 1) % count) + 1]
     const length = Math.hypot(bx - ax, by - ay)
     if (length === 0) {
+      polygons.push([]) // garde l'indice du polygone aligne sur celui du cote
       continue
     }
     const dx = (bx - ax) / length
@@ -211,9 +217,13 @@ function polygonPath(ctx, points) {
 }
 
 // Un fill par trait : deux traits qui se croisent (aux coins) s'accumulent si la couleur est transparente.
-function fillPolygons(ctx, polygons, color) {
-  ctx.setAttr('fillStyle', color)
-  polygons.forEach((points) => {
+// Le polygone d'indice `hoverEdge` (le cote survole) prend la couleur de survol.
+function fillPolygons(ctx, polygons, color, hoverColor, hoverEdge) {
+  polygons.forEach((points, edgeIndex) => {
+    if (points.length === 0) {
+      return
+    }
+    ctx.setAttr('fillStyle', edgeIndex === hoverEdge ? hoverColor : color)
     polygonPath(ctx, points)
     ctx.fill()
   })
@@ -221,11 +231,16 @@ function fillPolygons(ctx, polygons, color) {
 
 // sceneFunc Konva. Attributs du shape : `outlines` (obligatoire), puis `hatch` (hachures) et/ou
 // `points` + fillPatternImage (texture), selon le remplissage choisi.
+// Attributs optionnels de survol : `hoverArea` (surface teintee de vert) et `hoverEdge` (indice du cote en vert).
 export function drawMarkerArea(ctx, shape) {
-  const { hatch, outlines, points } = shape.attrs
+  const { hatch, outlines, points, hoverArea, hoverEdge } = shape.attrs
   if (points && shape.fillPatternImage()) {
     polygonPath(ctx, points)
     ctx.fillShape(shape) // remplit avec le pattern (fillPattern*) du shape
+    if (hoverArea) {
+      ctx.setAttr('fillStyle', HOVER_AREA_FILL)
+      ctx.fill()
+    }
   }
   ctx.setAttr('lineCap', 'round')
   ctx.setAttr('lineJoin', 'round')
@@ -233,6 +248,6 @@ export function drawMarkerArea(ctx, shape) {
     strokeEach(ctx, hatch, HATCH_COLOR, HATCH_WIDTH)
   }
   outlines.forEach((polygons, passIndex) => {
-    fillPolygons(ctx, polygons, OUTLINE_PASSES[passIndex].color)
+    fillPolygons(ctx, polygons, OUTLINE_PASSES[passIndex].color, HOVER_OUTLINE_COLORS[passIndex], hoverEdge)
   })
 }

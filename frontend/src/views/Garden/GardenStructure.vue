@@ -12,6 +12,7 @@ import {
 import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
+import { PAPER_COLOR, HOVER_COLOR } from '../../utils/markerSketch.js'
 import { CORNER_KEYS, EDGES, areaToPoints, edgeMidpoint, edgeLength, setEdgeLength } from '../../utils/areaGeometry.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
 
@@ -104,25 +105,73 @@ async function onCornerDragEnd(area) {
   }
 }
 
-// Configs et handlers des poignees, calcules quand les zones changent et non a chaque rendu (pan/zoom).
+// --- Survol : point, arete ou surface survole passe du noir au vert ---
+
+const INK_COLOR = '#161616'
+
+// Un seul element est survole a la fois (Konva ne signale que la forme la plus haute sous le curseur).
+// { kind: 'corner' | 'edge' | 'area', areaId, keyA?, keyB? } ou null.
+const hovered = ref(null)
+
+function sameHover(a, b) {
+  return a?.kind === b.kind && a.areaId === b.areaId && a.keyA === b.keyA && a.keyB === b.keyB
+}
+
+function hover(target) {
+  hovered.value = target
+}
+
+function unhover(target) {
+  // Ne rien effacer si un autre element a deja pris le relais (l'ordre leave/enter n'est pas garanti).
+  if (sameHover(hovered.value, target)) {
+    hovered.value = null
+  }
+}
+
+// Le survol d'une arete ou d'une surface est dessine par le shape de la zone lui-meme (contour et remplissage
+// recolores, voir drawMarkerArea) : on lui passe l'etat de survol, sans ajouter de forme. Recalcule uniquement
+// quand les zones ou le survol changent, pas a chaque pan/zoom.
+const areaFillConfigs = computed(
+  () =>
+    new Map(
+      areaShapes.value.map((shape) => {
+        const target = hovered.value?.areaId === shape.id ? hovered.value : null
+        const hoverEdge =
+          target?.kind === 'edge'
+            ? EDGES.findIndex(([keyA, keyB]) => keyA === target.keyA && keyB === target.keyB)
+            : -1
+        return [shape.id, { ...shape.fill, hoverArea: target?.kind === 'area', hoverEdge }]
+      }),
+    ),
+)
+
+// Configs et handlers des poignees, calcules quand les zones (ou le survol) changent et non a chaque rendu (pan/zoom).
 const cornerShapes = computed(
   () =>
     new Map(
       areas.value.map((area) => [
         area.id,
-        CORNER_KEYS.map((key) => ({
-          key,
-          config: {
-            x: area[`${key}X`],
-            y: area[`${key}Y`],
-            radius: 6,
-            fill: '#aa3bff',
-            draggable: true,
-            perfectDrawEnabled: false,
-          },
-          onDragMove: (konvaEvent) => onCornerDragMove(area, key, konvaEvent),
-          onDragEnd: () => onCornerDragEnd(area),
-        })),
+        CORNER_KEYS.map((key) => {
+          const target = { kind: 'corner', areaId: area.id, keyA: key }
+          return {
+            key,
+            config: {
+              x: area[`${key}X`],
+              y: area[`${key}Y`],
+              radius: 6,
+              fill: sameHover(hovered.value, target) ? HOVER_COLOR : INK_COLOR,
+              // Liseré clair : un point noir reste visible sur la texture de terre.
+              stroke: PAPER_COLOR,
+              strokeWidth: 1.5,
+              draggable: true,
+              perfectDrawEnabled: false,
+            },
+            onDragMove: (konvaEvent) => onCornerDragMove(area, key, konvaEvent),
+            onDragEnd: () => onCornerDragEnd(area),
+            onEnter: () => hover(target),
+            onLeave: () => unhover(target),
+          }
+        }),
       ]),
     ),
 )
@@ -159,12 +208,20 @@ async function onMoveDragEnd(area, konvaEvent, errorMessage) {
 }
 
 // Config et handlers d'une ligne de deplacement : l'appelant fournit sa forme et les sommets qu'elle deplace.
-function moveHandle(area, keys, lineConfig, errorMessage) {
+function moveHandle(area, keys, target, lineConfig, errorMessage) {
   return {
     config: { ...lineConfig, draggable: true, perfectDrawEnabled: false },
     onDragStart: () => onMoveDragStart(area, keys),
     onDragMove: (konvaEvent) => onMoveDragMove(area, konvaEvent),
     onDragEnd: (konvaEvent) => onMoveDragEnd(area, konvaEvent, errorMessage),
+    onEnter: (konvaEvent) => {
+      setCursor(konvaEvent, 'move')
+      hover(target)
+    },
+    onLeave: (konvaEvent) => {
+      setCursor(konvaEvent, '')
+      unhover(target)
+    },
   }
 }
 
@@ -181,6 +238,7 @@ const edgeHandles = computed(
           ...moveHandle(
             area,
             [keyA, keyB],
+            { kind: 'edge', areaId: area.id, keyA, keyB },
             {
               points: [area[`${keyA}X`], area[`${keyA}Y`], area[`${keyB}X`], area[`${keyB}Y`]],
               stroke: TRANSPARENT,
@@ -202,6 +260,7 @@ const areaHandles = computed(
         moveHandle(
           area,
           CORNER_KEYS,
+          { kind: 'area', areaId: area.id },
           { points: areaToPoints(area), closed: true, fill: TRANSPARENT },
           'Impossible de déplacer cette zone.',
         ),
@@ -350,14 +409,14 @@ async function removeArea(area) {
               <v-rect :config="backgroundConfig" />
 
               <template v-for="shape in areaShapes" :key="shape.id">
-                <v-shape :config="shape.fill" />
+                <v-shape :config="areaFillConfigs.get(shape.id)" />
                 <v-line
                   :config="areaHandles.get(shape.id).config"
                   @dragstart="areaHandles.get(shape.id).onDragStart"
                   @dragmove="areaHandles.get(shape.id).onDragMove"
                   @dragend="areaHandles.get(shape.id).onDragEnd"
-                  @mouseenter="setCursor($event, 'move')"
-                  @mouseleave="setCursor($event, '')"
+                  @mouseenter="areaHandles.get(shape.id).onEnter"
+                  @mouseleave="areaHandles.get(shape.id).onLeave"
                 />
                 <v-line
                   v-for="edge in edgeHandles.get(shape.id)"
@@ -366,8 +425,8 @@ async function removeArea(area) {
                   @dragstart="edge.onDragStart"
                   @dragmove="edge.onDragMove"
                   @dragend="edge.onDragEnd"
-                  @mouseenter="setCursor($event, 'move')"
-                  @mouseleave="setCursor($event, '')"
+                  @mouseenter="edge.onEnter"
+                  @mouseleave="edge.onLeave"
                 />
                 <v-text
                   v-for="label in shape.labels"
@@ -384,6 +443,8 @@ async function removeArea(area) {
                   :config="corner.config"
                   @dragmove="corner.onDragMove"
                   @dragend="corner.onDragEnd"
+                  @mouseenter="corner.onEnter"
+                  @mouseleave="corner.onLeave"
                 />
               </template>
             </v-layer>
