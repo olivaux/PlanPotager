@@ -123,7 +123,8 @@ CREATE TABLE PlantArchive(
    id_seedpacket BIGINT NOT NULL,
    PRIMARY KEY(id_plant),
    FOREIGN KEY(id_garden) REFERENCES Garden(id_garden),
-   FOREIGN KEY(id_seedpacket) REFERENCES SeedPacket(id_seedpacket)
+   FOREIGN KEY(id_seedpacket) REFERENCES SeedPacket(id_seedpacket),
+   INDEX idx_plantarchive_archived_at(archived_at)
 );
 
 CREATE TABLE Notification(
