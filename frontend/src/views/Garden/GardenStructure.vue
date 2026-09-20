@@ -12,7 +12,7 @@ import {
 import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
-import { CORNER_KEYS, edgeMidpoint, edgeLength, setEdgeLength } from '../../utils/areaGeometry.js'
+import { CORNER_KEYS, EDGES, edgeMidpoint, edgeLength, setEdgeLength } from '../../utils/areaGeometry.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
 
 const route = useRoute()
@@ -122,6 +122,63 @@ const cornerShapes = computed(
           },
           onDragMove: (konvaEvent) => onCornerDragMove(area, key, konvaEvent),
           onDragEnd: () => onCornerDragEnd(area),
+        })),
+      ]),
+    ),
+)
+
+// --- Deplacement d'une arete (ses deux sommets bougent ensemble) ---
+
+// Position des deux sommets au debut du glisser : le deplacement est toujours calcule depuis ce point de depart.
+let edgeDragStart = null
+
+function onEdgeDragStart(area, keyA, keyB) {
+  edgeDragStart = {
+    a: { x: area[`${keyA}X`], y: area[`${keyA}Y`] },
+    b: { x: area[`${keyB}X`], y: area[`${keyB}Y`] },
+  }
+}
+
+// La ligne de saisie est invisible et reste en (0, 0) : sa position pendant le glisser est donc le deplacement.
+function onEdgeDragMove(area, keyA, keyB, konvaEvent) {
+  const dx = Math.round(konvaEvent.target.x())
+  const dy = Math.round(konvaEvent.target.y())
+  area[`${keyA}X`] = edgeDragStart.a.x + dx
+  area[`${keyA}Y`] = edgeDragStart.a.y + dy
+  area[`${keyB}X`] = edgeDragStart.b.x + dx
+  area[`${keyB}Y`] = edgeDragStart.b.y + dy
+}
+
+async function onEdgeDragEnd(area, konvaEvent) {
+  // Les sommets ont deja bouge : la ligne revient en (0, 0) pour se recaler sur ses nouveaux points.
+  konvaEvent.target.position({ x: 0, y: 0 })
+  edgeDragStart = null
+  try {
+    await updateArea(gardenId, area.id, area)
+  } catch {
+    error.value = 'Impossible de déplacer cette arête.'
+  }
+}
+
+const edgeHandles = computed(
+  () =>
+    new Map(
+      areas.value.map((area) => [
+        area.id,
+        EDGES.map(([keyA, keyB]) => ({
+          key: `${area.id}-${keyA}-${keyB}`,
+          config: {
+            points: [area[`${keyA}X`], area[`${keyA}Y`], area[`${keyB}X`], area[`${keyB}Y`]],
+            // Transparente mais cliquable : seule la zone de saisie (hitStrokeWidth) compte.
+            stroke: 'rgba(0, 0, 0, 0)',
+            strokeWidth: 1,
+            hitStrokeWidth: 16,
+            draggable: true,
+            perfectDrawEnabled: false,
+          },
+          onDragStart: () => onEdgeDragStart(area, keyA, keyB),
+          onDragMove: (konvaEvent) => onEdgeDragMove(area, keyA, keyB, konvaEvent),
+          onDragEnd: (konvaEvent) => onEdgeDragEnd(area, konvaEvent),
         })),
       ]),
     ),
@@ -269,6 +326,16 @@ async function removeArea(area) {
 
               <template v-for="shape in areaShapes" :key="shape.id">
                 <v-shape :config="shape.fill" />
+                <v-line
+                  v-for="edge in edgeHandles.get(shape.id)"
+                  :key="edge.key"
+                  :config="edge.config"
+                  @dragstart="edge.onDragStart"
+                  @dragmove="edge.onDragMove"
+                  @dragend="edge.onDragEnd"
+                  @mouseenter="setCursor($event, 'move')"
+                  @mouseleave="setCursor($event, '')"
+                />
                 <v-text
                   v-for="label in shape.labels"
                   :key="label.key"
