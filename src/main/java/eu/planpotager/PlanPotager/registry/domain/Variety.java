@@ -6,7 +6,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 
+// BatchSize : les proxies de varietes sont initialises par lots (IN) plutot qu'un SELECT par variete.
+@BatchSize(size = 50)
 @Entity
 @Table(name = "Variety")
 public class Variety {

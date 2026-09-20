@@ -71,7 +71,8 @@ class RegistryServiceTest {
         Species tomato = new Species("Tomate", 0.3, 3, 5, 2, family);
         Variety cherry = new Variety("Cerise", 0.2, 3, 5, 2, tomato);
         Variety roma = new Variety("Roma", 0.3, 3, 5, 2, tomato);
-        when(varietyDAO.findBySpeciesName("Tomate")).thenReturn(List.of(cherry, roma));
+        Variety basilVariety = new Variety("Grand vert", 0.2, 3, 5, 2, species("Basilic"));
+        when(varietyDAO.findAll()).thenReturn(List.of(cherry, roma, basilVariety));
 
         List<VarietyDTO> result = registryService.getVarietiesBySpecies("Tomate");
 
@@ -80,11 +81,33 @@ class RegistryServiceTest {
 
     @Test
     void getVarietiesBySpecies_shouldReturnEmptyList_whenSpeciesHasNoVariety() {
-        when(varietyDAO.findBySpeciesName("Inconnu")).thenReturn(List.of());
+        when(varietyDAO.findAll()).thenReturn(List.of());
 
         List<VarietyDTO> result = registryService.getVarietiesBySpecies("Inconnu");
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getVarietiesBySpecies_shouldLoadRegistryOnlyOnce_whateverTheRequestedSpecies() {
+        Species tomato = species("Tomate");
+        when(varietyDAO.findAll()).thenReturn(List.of(new Variety("Cerise", 0.2, 3, 5, 2, tomato)));
+
+        registryService.getVarietiesBySpecies("Tomate");
+        registryService.getVarietiesBySpecies("Tomate");
+        registryService.getVarietiesBySpecies("Inconnu");
+
+        verify(varietyDAO, times(1)).findAll();
+    }
+
+    @Test
+    void getAllSpecies_shouldLoadRegistryOnlyOnce_acrossSuccessiveCalls() {
+        when(speciesDAO.findAll()).thenReturn(List.of(species("Tomate")));
+
+        registryService.getAllSpecies();
+        registryService.getAllSpecies();
+
+        verify(speciesDAO, times(1)).findAll();
     }
 
     @Test

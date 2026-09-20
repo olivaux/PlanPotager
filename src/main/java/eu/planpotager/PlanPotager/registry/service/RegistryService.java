@@ -13,9 +13,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+// Le registre est en lecture seule : chaque vue est chargee une seule fois, au premier appel, sans invalidation.
 @Service
 @Transactional(readOnly = true)
 public class RegistryService {
@@ -24,7 +27,9 @@ public class RegistryService {
     private final VarietyDAO varietyDAO;
     private final AssociationDAO associationDAO;
 
-    private volatile Map<SpeciesPair, AssociationDTO> associationsByPair;
+    private final Lazy<List<SpeciesDTO>> allSpecies = new Lazy<>(this::loadAllSpecies);
+    private final Lazy<Map<String, List<VarietyDTO>>> varietiesBySpecies = new Lazy<>(this::loadVarietiesBySpecies);
+    private final Lazy<Map<SpeciesPair, AssociationDTO>> associationsByPair = new Lazy<>(this::loadAssociations);
 
     public RegistryService(SpeciesDAO speciesDAO, VarietyDAO varietyDAO, AssociationDAO associationDAO) {
         this.speciesDAO = speciesDAO;
@@ -33,6 +38,10 @@ public class RegistryService {
     }
 
     public List<SpeciesDTO> getAllSpecies() {
+        return allSpecies.get();
+    }
+
+    private List<SpeciesDTO> loadAllSpecies() {
         return speciesDAO.findAll().stream()
                 .map(this::toSpeciesDTO)
                 .toList();
@@ -48,9 +57,16 @@ public class RegistryService {
     }
 
     public List<VarietyDTO> getVarietiesBySpecies(String speciesName) {
-        return varietyDAO.findBySpeciesName(speciesName).stream()
-                .map(this::toVarietyDTO)
-                .toList();
+        return varietiesBySpecies.get().getOrDefault(speciesName, List.of());
+    }
+
+    // Toutes les varietes d'un coup, groupees par espece : le nom d'espece vient de l'URL, on ne s'en sert donc
+    // jamais comme cle de cache ouverte.
+    private Map<String, List<VarietyDTO>> loadVarietiesBySpecies() {
+        return varietyDAO.findAll().stream()
+                .collect(Collectors.groupingBy(
+                        variety -> variety.getSpecies().getName(),
+                        Collectors.mapping(this::toVarietyDTO, Collectors.toUnmodifiableList())));
     }
 
     private VarietyDTO toVarietyDTO(Variety variety) {
@@ -63,22 +79,7 @@ public class RegistryService {
     }
 
     public Optional<AssociationDTO> getAssociation(String speciesA, String speciesB) {
-        return Optional.ofNullable(associationsByPair().get(SpeciesPair.of(speciesA, speciesB)));
-    }
-
-    // Le registre est en lecture seule : on le charge une seule fois, sans invalidation.
-    private Map<SpeciesPair, AssociationDTO> associationsByPair() {
-        Map<SpeciesPair, AssociationDTO> result = associationsByPair;
-        if (result == null) {
-            synchronized (this) {
-                result = associationsByPair;
-                if (result == null) {
-                    result = loadAssociations();
-                    associationsByPair = result;
-                }
-            }
-        }
-        return result;
+        return Optional.ofNullable(associationsByPair.get().get(SpeciesPair.of(speciesA, speciesB)));
     }
 
     private Map<SpeciesPair, AssociationDTO> loadAssociations() {
@@ -99,6 +100,31 @@ public class RegistryService {
             return speciesA.compareTo(speciesB) <= 0
                     ? new SpeciesPair(speciesA, speciesB)
                     : new SpeciesPair(speciesB, speciesA);
+        }
+    }
+
+    // Chargement paresseux, thread-safe, effectue une seule fois.
+    private static final class Lazy<T> {
+
+        private final Supplier<T> loader;
+        private volatile T value;
+
+        Lazy(Supplier<T> loader) {
+            this.loader = loader;
+        }
+
+        T get() {
+            T result = value;
+            if (result == null) {
+                synchronized (this) {
+                    result = value;
+                    if (result == null) {
+                        result = loader.get();
+                        value = result;
+                    }
+                }
+            }
+            return result;
         }
     }
 }

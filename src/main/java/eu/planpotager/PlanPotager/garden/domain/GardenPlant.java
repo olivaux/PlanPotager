@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -31,12 +32,12 @@ public class GardenPlant {
     @Column(name = "date_planted")
     private LocalDate datePlanted;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_seedpacket")
     private Plant plant;
 
-    @ManyToOne 
-    @JoinColumn(name = "id_garden", nullable = false) 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_garden", nullable = false)
     private Garden garden;
 
     protected GardenPlant() {
