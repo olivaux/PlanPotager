@@ -15,6 +15,7 @@ import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
 import { usePlantImage } from '../../composables/usePlantImage.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
+import { usePageTitle } from '../../composables/usePageTitle.js'
 
 const DEFAULT_PLANT_RADIUS = 30
 
@@ -22,6 +23,7 @@ const route = useRoute()
 const gardenId = Number(route.params.id)
 
 const garden = ref(null)
+usePageTitle(() => (garden.value ? `Potager "${garden.value.name}"` : null))
 const plants = ref([]) // GardenPlantDTO[]
 const areas = ref([]) // AreaDTO[]
 const ownedPlants = ref([]) // PlantDTO[], toutes les plantes du compte (placées ou non)

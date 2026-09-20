@@ -13,17 +13,18 @@ import GardenDetail from '../views/Garden/GardenDetail.vue'
 
 // Les routes des vues
 const routes = [
-  { path: '/signup', name: 'signup', component: AuthAction, meta: { mode: 'signup' } },
-  { path: '/login', name: 'login', component: AuthAction, meta: { mode: 'login' } },
-  { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
-  { path: '/profile/edit', name: 'profile-edit', component: EditProfile, meta: { requiresAuth: true } },
-  { path: '/catalog', name: 'catalog', component: CatalogView, meta: { requiresAuth: true } },
-  { path: '/plant/add', name: 'plant-add', component: AddPlant, meta: { requiresAuth: true } },
-  { path: '/plant/list', name: 'plant-list', component: MyPlants, meta: { requiresAuth: true } },
-  { path: '/garden', name: 'garden-list', component: GardenList, meta: { requiresAuth: true } },
-  { path: '/garden/new', name: 'garden-new', component: NewGarden, meta: { requiresAuth: true } },
-  { path: '/garden/:id/structure', name: 'garden-structure', component: GardenStructure, meta: { requiresAuth: true } },
-  { path: '/garden/:id/plants', name: 'garden-detail', component: GardenDetail, meta: { requiresAuth: true } },
+  // meta.title : titre affiché dans l'entête (les vues de potager le complètent avec le nom du potager)
+  { path: '/signup', name: 'signup', component: AuthAction, meta: { mode: 'signup', title: 'Créer un compte' } },
+  { path: '/login', name: 'login', component: AuthAction, meta: { mode: 'login', title: 'Se connecter' } },
+  { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true, title: 'Mon profil' } },
+  { path: '/profile/edit', name: 'profile-edit', component: EditProfile, meta: { requiresAuth: true, title: 'Modifier le profil' } },
+  { path: '/catalog', name: 'catalog', component: CatalogView, meta: { requiresAuth: true, title: 'Catalogue' } },
+  { path: '/plant/add', name: 'plant-add', component: AddPlant, meta: { requiresAuth: true, title: 'Ajouter une plante' } },
+  { path: '/plant/list', name: 'plant-list', component: MyPlants, meta: { requiresAuth: true, title: 'Mes plantes' } },
+  { path: '/garden', name: 'garden-list', component: GardenList, meta: { requiresAuth: true, title: 'Liste des potagers' } },
+  { path: '/garden/new', name: 'garden-new', component: NewGarden, meta: { requiresAuth: true, title: 'Nouveau potager' } },
+  { path: '/garden/:id/structure', name: 'garden-structure', component: GardenStructure, meta: { requiresAuth: true, title: 'Structure du potager' } },
+  { path: '/garden/:id/plants', name: 'garden-detail', component: GardenDetail, meta: { requiresAuth: true, title: 'Potager' } },
 ]
 
 const router = createRouter({

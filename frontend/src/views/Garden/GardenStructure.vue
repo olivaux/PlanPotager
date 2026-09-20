@@ -13,11 +13,13 @@ import { useKonvaZoomPan } from '../../composables/useKonvaZoomPan.js'
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
 import { CORNER_KEYS } from '../../utils/areaGeometry.js'
+import { usePageTitle } from '../../composables/usePageTitle.js'
 
 const route = useRoute()
 const gardenId = Number(route.params.id)
 
 const garden = ref(null)
+usePageTitle(() => (garden.value ? `Structure du potager ${garden.value.name}` : null))
 const areas = ref([]) // AreaDTO[]
 const loading = ref(true)
 const error = ref(null)
