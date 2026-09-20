@@ -16,6 +16,7 @@ import { usePlantImage, resolveSpeciesImageUrl } from '../../composables/usePlan
 import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
+import StarRating from '../../components/StarRating.vue'
 import editIcon from '../../assets/edit.png'
 import leftIcon from '../../assets/left.png'
 
@@ -306,7 +307,8 @@ async function removeSelectedPlant() {
           </v-stage>
 
           <p v-if="garden.score !== null && garden.score !== undefined" class="garden-score">
-            Score d'association : {{ garden.score.toFixed(1) }}/10
+            <!-- Le serveur calcule un score sur 10 : converti en 0 a 5 etoiles. -->
+            <StarRating :value="garden.score / 2" />
           </p>
           <p v-else class="garden-score hint">Score d'association : aucune association détectée</p>
 
