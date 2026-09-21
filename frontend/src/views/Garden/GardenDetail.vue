@@ -193,6 +193,7 @@ onMounted(loadAll)
 // --- Placement d'une plante (drag depuis la palette, drop sur le canvas) ---
 
 const paletteOpen = ref(false)
+const showAssociations = ref(true)
 
 function onPaletteDragStart(event, plant) {
   event.dataTransfer.setData('text/plain', String(plant.id))
@@ -293,7 +294,9 @@ async function removeSelectedPlant() {
                 <v-text v-for="label in shape.labels" :key="label.key" :config="label.config" />
               </template>
 
-              <v-shape v-for="line in associationLines" :key="line.key" :config="line.config" />
+              <template v-if="showAssociations">
+                <v-shape v-for="line in associationLines" :key="line.key" :config="line.config" />
+              </template>
 
               <v-group
                 v-for="node in plantNodes"
@@ -335,6 +338,22 @@ async function removeSelectedPlant() {
           >
             <img :src="editIcon" alt="" />
           </RouterLink>
+
+          <button
+            type="button"
+            class="associations-toggle"
+            :class="{ off: !showAssociations }"
+            :title="showAssociations ? 'Masquer les associations' : 'Afficher les associations'"
+            :aria-label="showAssociations ? 'Masquer les associations' : 'Afficher les associations'"
+            :aria-pressed="showAssociations"
+            @click="showAssociations = !showAssociations"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" />
+              <circle cx="12" cy="12" r="3" />
+              <line v-if="!showAssociations" x1="4" y1="20" x2="20" y2="4" />
+            </svg>
+          </button>
 
           <button
             type="button"
@@ -475,7 +494,8 @@ async function removeSelectedPlant() {
   display: block;
 }
 
-.palette-toggle {
+.palette-toggle,
+.associations-toggle {
   position: absolute;
   left: 12px;
   bottom: 12px;
@@ -489,6 +509,28 @@ async function removeSelectedPlant() {
   line-height: 1;
   cursor: pointer;
   box-shadow: var(--shadow);
+}
+
+/* Au-dessus du bouton "+" (40px + 8px d'ecart). */
+.associations-toggle {
+  bottom: 60px;
+  padding: 0;
+}
+
+.associations-toggle svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  margin: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.associations-toggle.off {
+  color: var(--text);
 }
 
 .palette-backdrop {
