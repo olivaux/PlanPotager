@@ -7,6 +7,7 @@ import {
   getGardenAreas,
   addPlantToGarden,
   updatePlantPosition,
+  updatePlantMatrix,
   setPlantState,
   removePlantFromGarden,
 } from '../../services/gardenService.js'
@@ -113,47 +114,80 @@ function plantStrokeColor(state) {
   return STATE_STROKE_COLORS[state]
 }
 
-function circleClip(ctx, radius) {
-  ctx.arc(0, 0, radius, 0, Math.PI * 2, false)
+// Une plante occupe un rectangle de matrixX x matrixY cases de 2 * rayon de cote, centre sur son point (x, y).
+// Les coins sont arrondis au rayon de la plante : en 1 x 1 le rectangle est exactement le cercle d'origine.
+function roundedRectClip(ctx, width, height, cornerRadius) {
+  ctx.roundRect(-width / 2, -height / 2, width, height, cornerRadius)
 }
 
-// Un clipFunc par rayon (et non par plante et par rendu) : sa reference reste stable d'un rendu a l'autre.
-const clipFuncsByRadius = new Map()
+// Un clipFunc par dimension (et non par plante et par rendu) : sa reference reste stable d'un rendu a l'autre.
+const clipFuncsBySize = new Map()
 
-function clipFuncForRadius(radius) {
-  if (!clipFuncsByRadius.has(radius)) {
-    clipFuncsByRadius.set(radius, (ctx) => circleClip(ctx, radius))
+function clipFuncForSize(width, height, cornerRadius) {
+  const key = `${width}x${height}x${cornerRadius}`
+  if (!clipFuncsBySize.has(key)) {
+    clipFuncsBySize.set(key, (ctx) => roundedRectClip(ctx, width, height, cornerRadius))
   }
-  return clipFuncsByRadius.get(radius)
+  return clipFuncsBySize.get(key)
 }
 
 // Configs Konva de chaque plante, recalculees uniquement quand les plantes, la selection ou les images changent,
-// pas a chaque pan/zoom. Le cercle est le seul noeud qui ecoute la souris (zone de clic/drag du groupe) :
-// l'image et son clip, de meme rayon, sont exclus du hit graph.
+// pas a chaque pan/zoom. Le rectangle est le seul noeud qui ecoute la souris (zone de clic/drag du groupe) :
+// l'image, son clip et la quantite sont exclus du hit graph.
+// Le legume n'est dessine qu'une fois, a la taille de la plus petite dimension du rectangle et centre dessus ;
+// la quantite (x<colonnes * lignes>) se place en bas a droite de cette image.
 const plantNodes = computed(() =>
   plants.value.map((plant) => {
     const radius = plantRadius(plant.plantId)
+    const width = plant.matrixX * 2 * radius
+    const height = plant.matrixY * 2 * radius
+    const cornerRadius = Math.min(radius, width / 2, height / 2)
+    const imageSize = Math.min(width, height)
+    const quantity = plant.matrixX * plant.matrixY
+    const fontSize = Math.max(10, radius * 0.7)
     return {
       id: plant.id,
       group: { x: plant.x, y: plant.y, draggable: plant.state === 'A_PLANTER' },
-      circle: {
-        radius,
+      rect: {
+        x: -width / 2,
+        y: -height / 2,
+        width,
+        height,
+        cornerRadius,
         stroke: plantStrokeColor(plant.state),
         strokeWidth: 2,
         fill: plant.id === selectedGardenPlantId.value ? '#2c8a3d' : undefined,
         perfectDrawEnabled: false,
       },
-      clip: { clipFunc: clipFuncForRadius(radius), listening: false },
+      clip: { clipFunc: clipFuncForSize(width, height, cornerRadius), listening: false },
       image: {
         image: plantImage(plant.plantId),
-        width: 2 * radius,
-        height: 2 * radius,
-        offsetX: radius,
-        offsetY: radius,
+        width: imageSize,
+        height: imageSize,
+        offsetX: imageSize / 2,
+        offsetY: imageSize / 2,
         opacity: plant.state === 'RECOLTEE' ? 0.5 : 1,
         listening: false,
         perfectDrawEnabled: false,
       },
+      quantity:
+        quantity > 1
+          ? {
+              text: `x${quantity}`,
+              x: -imageSize / 2,
+              y: imageSize / 2 - fontSize - 4,
+              width: imageSize - 4,
+              align: 'right',
+              fontSize,
+              fontStyle: 'bold',
+              fill: '#ffffff',
+              stroke: '#000000',
+              strokeWidth: 3,
+              fillAfterStrokeEnabled: true,
+              listening: false,
+              perfectDrawEnabled: false,
+            }
+          : null,
       onDragEnd: (konvaEvent) => onPlantDragEnd(plant, konvaEvent),
       onSelect: () => selectPlant(plant),
     }
@@ -255,6 +289,47 @@ function selectPlant(plant) {
   selectedGardenPlantId.value = plant.id
 }
 
+// --- Matrice de legumes (X colonnes x Y lignes) de la plante selectionnee ---
+
+const MAX_MATRIX_SIZE = 50
+
+const matrixXInput = ref(1)
+const matrixYInput = ref(1)
+
+// Les champs suivent la plante selectionnee.
+watch(
+  selectedPlant,
+  (plant) => {
+    matrixXInput.value = plant?.matrixX ?? 1
+    matrixYInput.value = plant?.matrixY ?? 1
+  },
+  { immediate: true },
+)
+
+function isValidMatrixSize(size) {
+  return Number.isInteger(size) && size >= 1 && size <= MAX_MATRIX_SIZE
+}
+
+const canApplyMatrix = computed(
+  () => isValidMatrixSize(matrixXInput.value) && isValidMatrixSize(matrixYInput.value),
+)
+
+async function applyMatrix() {
+  if (!selectedPlant.value || !canApplyMatrix.value) {
+    return
+  }
+  try {
+    const updated = await updatePlantMatrix(gardenId, selectedPlant.value.id, {
+      x: matrixXInput.value,
+      y: matrixYInput.value,
+    })
+    selectedPlant.value.matrixX = updated.matrixX
+    selectedPlant.value.matrixY = updated.matrixY
+  } catch {
+    error.value = 'Impossible de modifier la quantité de cette plante.'
+  }
+}
+
 async function changeState(newState) {
   if (!selectedPlant.value || !newState) {
     return
@@ -322,10 +397,11 @@ async function removeSelectedPlant() {
                 @click="node.onSelect"
                 @tap="node.onSelect"
               >
-                <v-circle :config="node.circle" />
+                <v-rect :config="node.rect" />
                 <v-group :config="node.clip">
                   <v-image :config="node.image" />
                 </v-group>
+                <v-text v-if="node.quantity" :config="node.quantity" />
               </v-group>
             </v-layer>
           </v-stage>
@@ -395,6 +471,17 @@ async function removeSelectedPlant() {
                 </option>
               </select>
             </label>
+            <form class="matrix-form" @submit.prevent="applyMatrix">
+              <label class="field">
+                X
+                <input v-model.number="matrixXInput" type="number" min="1" :max="MAX_MATRIX_SIZE" step="1" />
+              </label>
+              <label class="field">
+                Y
+                <input v-model.number="matrixYInput" type="number" min="1" :max="MAX_MATRIX_SIZE" step="1" />
+              </label>
+              <button type="submit" class="btn" :disabled="!canApplyMatrix">OK</button>
+            </form>
             <button type="button" class="btn" @click="removeSelectedPlant">Retirer du potager</button>
           </section>
 
@@ -698,5 +785,16 @@ async function removeSelectedPlant() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.matrix-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.matrix-form .field {
+  flex: 1;
+  min-width: 0;
 }
 </style>

@@ -22,6 +22,9 @@ export const addPlantToGarden = (gardenId, { plantId, x, y }) =>
 export const updatePlantPosition = (gardenId, gardenPlantId, { x, y }) =>
   put(`/garden/${gardenId}/plant/${gardenPlantId}/position`, { x, y })
 
+export const updatePlantMatrix = (gardenId, gardenPlantId, { x, y }) =>
+  put(`/garden/${gardenId}/plant/${gardenPlantId}/matrix`, { x, y })
+
 export const getAvailableStates = (gardenId, plantId) =>
   get(`/garden/${gardenId}/plant/${plantId}/states`)
 

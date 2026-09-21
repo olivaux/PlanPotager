@@ -101,6 +101,8 @@ CREATE TABLE Plant(
    id_plant BIGINT AUTO_INCREMENT,
    x INT,
    y INT,
+   matrix_x INT NOT NULL DEFAULT 1,
+   matrix_y INT NOT NULL DEFAULT 1,
    state VARCHAR(20),
    date_toPlant DATE,
    date_planted DATE,

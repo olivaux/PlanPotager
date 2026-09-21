@@ -19,6 +19,7 @@ import eu.planpotager.PlanPotager.garden.dto.AreaDTO;
 import eu.planpotager.PlanPotager.garden.dto.GardenDTO;
 import eu.planpotager.PlanPotager.garden.dto.GardenPlantDTO;
 import eu.planpotager.PlanPotager.garden.dto.GardenRequest;
+import eu.planpotager.PlanPotager.garden.dto.SetMatrixRequest;
 import eu.planpotager.PlanPotager.garden.dto.SetStateRequest;
 import eu.planpotager.PlanPotager.garden.service.GardenService;
 import eu.planpotager.PlanPotager.user.service.CustomOidcUserService;
@@ -156,7 +157,7 @@ class GardenControllerTest {
 
     @Test
     void addPlantToGarden_shouldReturnCreatedGardenPlant_whenAuthenticated() throws Exception {
-        GardenPlantDTO created = new GardenPlantDTO(7L, 10, 20, PlantState.A_PLANTER, 42L);
+        GardenPlantDTO created = new GardenPlantDTO(7L, 10, 20, 1, 1, PlantState.A_PLANTER, 42L);
         when(gardenService.addPlantToGarden(EMAIL, 1L, 42L, 10, 20)).thenReturn(created);
 
         mockMvc.perform(post("/api/garden/{gardenId}/plant", 1L)
@@ -180,7 +181,7 @@ class GardenControllerTest {
 
     @Test
     void getPlantCurrentPosition_shouldReturnPosition_whenAuthenticated() throws Exception {
-        GardenPlantDTO position = new GardenPlantDTO(7L, 10, 20, PlantState.PLANTEE, 42L);
+        GardenPlantDTO position = new GardenPlantDTO(7L, 10, 20, 1, 1, PlantState.PLANTEE, 42L);
         when(gardenService.getPlantCurrentPosition(EMAIL, 1L, 42L)).thenReturn(position);
 
         mockMvc.perform(get("/api/garden/{gardenId}/plant/{plantId}", 1L, 42L)
@@ -229,6 +230,40 @@ class GardenControllerTest {
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("x", 30, "y", 40))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void changePlantMatrix_shouldReturnUpdatedPlant_whenAuthenticated() throws Exception {
+        GardenPlantDTO plant = new GardenPlantDTO(42L, 10, 20, 2, 4, PlantState.A_PLANTER, 7L);
+        when(gardenService.changePlantMatrix(EMAIL, 1L, 42L, 2, 4)).thenReturn(plant);
+
+        mockMvc.perform(put("/api/garden/{gardenId}/plant/{plantId}/matrix", 1L, 42L)
+                .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new SetMatrixRequest(2, 4))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matrixX").value(2))
+                .andExpect(jsonPath("$.matrixY").value(4));
+    }
+
+    @Test
+    void changePlantMatrix_shouldReturnBadRequest_whenDimensionOutOfRange() throws Exception {
+        mockMvc.perform(put("/api/garden/{gardenId}/plant/{plantId}/matrix", 1L, 42L)
+                .with(oidcLogin().userInfoToken(token -> token.claim("email", EMAIL)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new SetMatrixRequest(0, 4))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void changePlantMatrix_shouldBeRejected_whenNotAuthenticated() throws Exception {
+        mockMvc.perform(put("/api/garden/{gardenId}/plant/{plantId}/matrix", 1L, 42L)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new SetMatrixRequest(2, 4))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -369,7 +404,7 @@ class GardenControllerTest {
 
     @Test
     void getGardenPlants_shouldReturnPlants_whenAuthenticated() throws Exception {
-        GardenPlantDTO plant = new GardenPlantDTO(7L, 10, 20, PlantState.PLANTEE, 42L);
+        GardenPlantDTO plant = new GardenPlantDTO(7L, 10, 20, 1, 1, PlantState.PLANTEE, 42L);
         when(gardenService.getGardenPlants(EMAIL, 1L)).thenReturn(List.of(plant));
 
         mockMvc.perform(get("/api/garden/{gardenId}/plants", 1L)

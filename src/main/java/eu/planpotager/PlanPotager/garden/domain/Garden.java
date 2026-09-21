@@ -112,6 +112,12 @@ public class Garden {
         gardenPlant.setPosition(newX, newY);
     }
 
+    public GardenPlant updatePlantMatrix(Long gardenPlantId, int matrixX, int matrixY) {
+        GardenPlant gardenPlant = findGardenPlant(gardenPlantId);
+        gardenPlant.setMatrix(matrixX, matrixY);
+        return gardenPlant;
+    }
+
     public void setPlantState(Long gardenPlantId, PlantState state) {
         GardenPlant gardenPlant = findGardenPlant(gardenPlantId);
         gardenPlant.setState(state);

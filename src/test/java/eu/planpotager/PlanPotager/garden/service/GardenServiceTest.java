@@ -432,6 +432,39 @@ class GardenServiceTest {
     }
 
     @Test
+    void changePlantMatrix_shouldUpdateMatrixOnEntity() {
+        User user = new User(USER_EMAIL);
+        Garden garden = mock(Garden.class);
+        GardenPlant gardenPlant = mock(GardenPlant.class);
+        Plant plant = plantOfSpecies("Tomate");
+        when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
+        when(garden.getUser()).thenReturn(user);
+        when(garden.updatePlantMatrix(42L, 2, 4)).thenReturn(gardenPlant);
+        when(gardenPlant.getId()).thenReturn(42L);
+        when(gardenPlant.getMatrixX()).thenReturn(2);
+        when(gardenPlant.getMatrixY()).thenReturn(4);
+        when(gardenPlant.getState()).thenReturn(PlantState.A_PLANTER);
+        when(gardenPlant.getPlant()).thenReturn(plant);
+
+        GardenPlantDTO result = gardenService.changePlantMatrix(USER_EMAIL, 1L, 42L, 2, 4);
+
+        verify(garden).updatePlantMatrix(42L, 2, 4);
+        assertThat(result.matrixX()).isEqualTo(2);
+        assertThat(result.matrixY()).isEqualTo(4);
+    }
+
+    @Test
+    void changePlantMatrix_shouldThrow_whenUserDoesNotOwnGarden() {
+        User owner = new User(USER_EMAIL);
+        Garden garden = mock(Garden.class);
+        when(gardenDAO.findById(1L)).thenReturn(Optional.of(garden));
+        when(garden.getUser()).thenReturn(owner);
+
+        assertThatThrownBy(() -> gardenService.changePlantMatrix(OTHER_USER_EMAIL, 1L, 42L, 2, 4))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void getAvailableStates_shouldReturnAllFourStates() {
         List<PlantState> result = gardenService.getAvailableStates();
 

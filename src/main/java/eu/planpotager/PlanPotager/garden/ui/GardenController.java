@@ -1,11 +1,13 @@
 package eu.planpotager.PlanPotager.garden.ui;
 
+import eu.planpotager.PlanPotager.garden.domain.GardenPlant;
 import eu.planpotager.PlanPotager.garden.domain.PlantState;
 import eu.planpotager.PlanPotager.garden.dto.AddPlantToGardenRequest;
 import eu.planpotager.PlanPotager.garden.dto.AreaDTO;
 import eu.planpotager.PlanPotager.garden.dto.GardenDTO;
 import eu.planpotager.PlanPotager.garden.dto.GardenPlantDTO;
 import eu.planpotager.PlanPotager.garden.dto.GardenRequest;
+import eu.planpotager.PlanPotager.garden.dto.SetMatrixRequest;
 import eu.planpotager.PlanPotager.garden.dto.SetStateRequest;
 import eu.planpotager.PlanPotager.garden.service.GardenService;
 import java.util.List;
@@ -118,6 +120,23 @@ public class GardenController {
             return ResponseEntity.ok(garden);
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PutMapping("/{gardenId}/plant/{gardenPlantId}/matrix")
+    public ResponseEntity<GardenPlantDTO> changePlantMatrix(@PathVariable Long gardenId,
+            @PathVariable Long gardenPlantId,
+            @RequestBody SetMatrixRequest request,
+            @AuthenticationPrincipal OidcUser principal) {
+        if (!GardenPlant.isValidMatrixSize(request.x()) || !GardenPlant.isValidMatrixSize(request.y())) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            GardenPlantDTO gardenPlant = gardenService.changePlantMatrix(principal.getEmail(), gardenId,
+                    gardenPlantId, request.x(), request.y());
+            return ResponseEntity.ok(gardenPlant);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }

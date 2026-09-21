@@ -142,6 +142,17 @@ public class GardenService {
         return toGardenDTO(garden, associationLinks);
     }
 
+    // Le centre de la plante ne bouge pas : les associations (calculees depuis le centre) ne changent donc pas.
+    public GardenPlantDTO changePlantMatrix(String userEmail, Long gardenId, Long gardenPlantId, int matrixX, int matrixY) {
+        Garden garden = gardenDAO.findById(gardenId)
+            .orElseThrow(() -> new IllegalArgumentException("Garden not found"));
+
+        checkUserAccess(userEmail, garden);
+
+        GardenPlant gardenPlant = garden.updatePlantMatrix(gardenPlantId, matrixX, matrixY);
+        return toGardenPlantDTO(gardenPlant);
+    }
+
     public List<PlantState> getAvailableStates() {
         return List.of(PlantState.values());
     }
@@ -240,6 +251,7 @@ public class GardenService {
 
     private GardenPlantDTO toGardenPlantDTO(GardenPlant gardenPlant) {
         return new GardenPlantDTO(gardenPlant.getId(), gardenPlant.getX(), gardenPlant.getY(),
+                gardenPlant.getMatrixX(), gardenPlant.getMatrixY(),
                 gardenPlant.getState(), gardenPlant.getPlant().getId());
     }
 

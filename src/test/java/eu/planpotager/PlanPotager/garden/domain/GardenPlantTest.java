@@ -94,4 +94,34 @@ class GardenPlantTest {
         assertThat(gardenPlant.getX()).isEqualTo(10);
         assertThat(gardenPlant.getY()).isEqualTo(20);
     }
+
+    @Test
+    void constructor_shouldDefaultToASingleVegetable() {
+        GardenPlant gardenPlant = newGardenPlant();
+
+        assertThat(gardenPlant.getMatrixX()).isEqualTo(1);
+        assertThat(gardenPlant.getMatrixY()).isEqualTo(1);
+    }
+
+    @Test
+    void setMatrix_shouldUpdateBothDimensions_evenOncePlanted() {
+        GardenPlant gardenPlant = newGardenPlant();
+        gardenPlant.setState(PlantState.PLANTEE);
+
+        gardenPlant.setMatrix(2, 4);
+
+        assertThat(gardenPlant.getMatrixX()).isEqualTo(2);
+        assertThat(gardenPlant.getMatrixY()).isEqualTo(4);
+    }
+
+    @Test
+    void setMatrix_shouldThrow_whenADimensionIsOutOfRange() {
+        GardenPlant gardenPlant = newGardenPlant();
+
+        assertThatThrownBy(() -> gardenPlant.setMatrix(0, 4)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gardenPlant.setMatrix(2, GardenPlant.MAX_MATRIX_SIZE + 1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(gardenPlant.getMatrixX()).isEqualTo(1);
+        assertThat(gardenPlant.getMatrixY()).isEqualTo(1);
+    }
 }

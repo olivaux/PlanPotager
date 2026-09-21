@@ -19,12 +19,21 @@ import java.time.LocalDate;
 @Table(name = "Plant")
 public class GardenPlant {
 
+    public static final int MAX_MATRIX_SIZE = 50;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_plant")
     private Long id;
     private int x;
     private int y;
+
+    // Nombre de legumes de la plante en colonnes (X) et en lignes (Y) : 1 x 1 = un seul legume (un cercle a l'ecran).
+    @Column(name = "matrix_x")
+    private int matrixX = 1;
+
+    @Column(name = "matrix_y")
+    private int matrixY = 1;
 
     @Enumerated(EnumType.STRING)
     private PlantState state;
@@ -69,6 +78,26 @@ public class GardenPlant {
         }
         this.x = x;
         this.y = y;
+    }
+
+    public int getMatrixX() {
+        return matrixX;
+    }
+
+    public int getMatrixY() {
+        return matrixY;
+    }
+
+    public void setMatrix(int matrixX, int matrixY) {
+        if (!isValidMatrixSize(matrixX) || !isValidMatrixSize(matrixY)) {
+            throw new IllegalArgumentException("Matrix size must be between 1 and " + MAX_MATRIX_SIZE);
+        }
+        this.matrixX = matrixX;
+        this.matrixY = matrixY;
+    }
+
+    public static boolean isValidMatrixSize(int size) {
+        return size >= 1 && size <= MAX_MATRIX_SIZE;
     }
 
     public PlantState getState() {
