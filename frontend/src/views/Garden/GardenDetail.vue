@@ -314,6 +314,7 @@ async function removeSelectedPlant() {
           <p v-if="garden.score !== null && garden.score !== undefined" class="garden-score">
             <!-- Le serveur calcule un score sur 10 : converti en 0 a 5 etoiles. -->
             <StarRating :value="garden.score / 2" />
+            <span class="garden-score-value">{{ garden.score.toFixed(1).replace('.', ',') }}/10</span>
           </p>
           <p v-else class="garden-score hint">Score d'association : aucune plante voisine</p>
 
@@ -595,6 +596,11 @@ async function removeSelectedPlant() {
   font-size: 14px;
   text-shadow: 0 0 4px var(--bg), 0 0 4px var(--bg);
   pointer-events: none;
+}
+
+.garden-score-value {
+  display: block;
+  color: #888;
 }
 
 /* Panneau de la plante selectionnee : superpose au canvas (en bas a droite) pour ne pas le decaler. */
