@@ -17,6 +17,11 @@ import { useGardenBackground } from '../../composables/useGardenBackground.js'
 import { useAreaShapes } from '../../composables/useAreaShapes.js'
 import { usePageTitle } from '../../composables/usePageTitle.js'
 import StarRating from '../../components/StarRating.vue'
+import {
+  ASSOCIATION_COLORS,
+  associationLineWidth,
+  drawAssociationLine,
+} from '../../utils/associationLine.js'
 import editIcon from '../../assets/edit.png'
 import leftIcon from '../../assets/left.png'
 
@@ -79,9 +84,9 @@ const associationLines = computed(() =>
         key: `${link.plantId1}-${link.plantId2}`,
         config: {
           points: [from.x, from.y, to.x, to.y],
-          stroke: link.positive ? '#3de05b' : '#c0392b',
-          strokeWidth: 3,
-          dash: [6, 4],
+          width: associationLineWidth(from, to, plantRadius(from.plantId), plantRadius(to.plantId)),
+          rgb: link.positive ? ASSOCIATION_COLORS.positive : ASSOCIATION_COLORS.negative,
+          sceneFunc: drawAssociationLine,
           listening: false,
           perfectDrawEnabled: false,
         },
@@ -288,7 +293,7 @@ async function removeSelectedPlant() {
                 <v-text v-for="label in shape.labels" :key="label.key" :config="label.config" />
               </template>
 
-              <v-line v-for="line in associationLines" :key="line.key" :config="line.config" />
+              <v-shape v-for="line in associationLines" :key="line.key" :config="line.config" />
 
               <v-group
                 v-for="node in plantNodes"
