@@ -10,7 +10,7 @@ const FADE_RATIO = 0.35
 
 export const ASSOCIATION_COLORS = {
   positive: '61, 224, 91',
-  negative: '192, 57, 43',
+  negative: '240, 98, 84',
 }
 
 // Plantes collees (distance = somme des rayons) : diametre de la plus petite. Plus elles s'eloignent, plus le lien
