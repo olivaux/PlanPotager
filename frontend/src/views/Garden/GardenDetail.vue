@@ -193,6 +193,22 @@ onMounted(loadAll)
 // --- Placement d'une plante (drag depuis la palette, drop sur le canvas) ---
 
 const paletteOpen = ref(false)
+const paletteSearch = ref('')
+
+// Insensible a la casse et aux accents : "ete" retrouve "Été".
+function normalizeText(text) {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
+const filteredPlants = computed(() => {
+  const query = normalizeText(paletteSearch.value.trim())
+  if (query === '') {
+    return ownedPlants.value
+  }
+  return ownedPlants.value.filter(
+    (p) => normalizeText(p.species).includes(query) || normalizeText(p.variety).includes(query),
+  )
+})
 const showAssociations = ref(true)
 
 function onPaletteDragStart(event, plant) {
@@ -358,8 +374,8 @@ async function removeSelectedPlant() {
           <button
             type="button"
             class="palette-toggle"
-            title="Mes plantes disponibles"
-            aria-label="Mes plantes disponibles"
+            title="Grainetier"
+            aria-label="Grainetier"
             @click="paletteOpen = !paletteOpen"
           >
             +
@@ -390,7 +406,14 @@ async function removeSelectedPlant() {
             <!-- .stop : on ne peut pas deposer une plante sur la fenetre elle-meme (elle masque le potager) -->
             <div class="palette-window" @dragover.stop @drop.stop>
               <div class="palette-header">
-                <h2>Mes plantes disponibles</h2>
+                <h2>Grainetier</h2>
+                <input
+                  v-model="paletteSearch"
+                  type="search"
+                  class="palette-search"
+                  placeholder="Rechercher une espèce ou variété"
+                  aria-label="Rechercher une plante par espèce ou variété"
+                />
                 <RouterLink
                   :to="{ name: 'plant-list' }"
                   class="edit-plants"
@@ -403,10 +426,13 @@ async function removeSelectedPlant() {
               <p v-if="ownedPlants.length === 0" class="hint">
                 Vous n'avez pas encore de plante. Ajoutez-en depuis votre compte.
               </p>
+              <p v-else-if="filteredPlants.length === 0" class="hint">
+                Aucune plante ne correspond à votre recherche.
+              </p>
               <template v-else>
                 <ul class="list-reset palette">
                   <li
-                    v-for="plant in ownedPlants"
+                    v-for="plant in filteredPlants"
                     :key="plant.id"
                     class="list-card"
                     draggable="true"
@@ -563,6 +589,17 @@ async function removeSelectedPlant() {
 
 .palette-header h2 {
   margin: 0;
+}
+
+.palette-search {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
 }
 
 .edit-plants {
