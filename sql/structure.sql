@@ -53,6 +53,11 @@ CREATE TABLE Species(
    plantation_end INT,
    harvest_duration INT,
    name_family VARCHAR(50)  NOT NULL,
+   seed_frame_start INT,
+   seed_in_start INT,
+   seed_out_start INT,
+   plantation_protection_start INT,
+   plantation_no_protection_start INT,
    PRIMARY KEY(name_species),
    FOREIGN KEY(name_family) REFERENCES Family(name_family)
 );
