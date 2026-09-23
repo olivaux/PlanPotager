@@ -40,15 +40,16 @@ class RegistryServiceTest {
     private RegistryService registryService;
 
     private Species species(String name) {
-        Family family = new Family("Solanaceae", new Type("Légume"));
-        return new Species(name, 0.3, 3, 5, 2, family);
+        Family family = new Family("Solanaceae");
+        return new Species(name, 0.3, 3, 5, 2, family, new Type("Légume"));
     }
 
     @Test
     void getAllSpecies_shouldReturnDTOsForEverySpeciesInRegistry() {
-        Family family = new Family("Solanaceae", new Type("Légume"));
-        Species tomato = new Species("Tomate", 0.3, 3, 5, 2, family);
-        Species pepper = new Species("Poivron", 0.25, 3, 5, 3, family);
+        Family family = new Family("Solanaceae");
+        Type type = new Type("Légume");
+        Species tomato = new Species("Tomate", 0.3, 3, 5, 2, family, type);
+        Species pepper = new Species("Poivron", 0.25, 3, 5, 3, family, type);
         when(speciesDAO.findAll()).thenReturn(List.of(tomato, pepper));
 
         List<SpeciesDTO> result = registryService.getAllSpecies();
@@ -67,8 +68,8 @@ class RegistryServiceTest {
 
     @Test
     void getVarietiesBySpecies_shouldReturnOnlyVarietiesOfRequestedSpecies() {
-        Family family = new Family("Solanaceae", new Type("Légume"));
-        Species tomato = new Species("Tomate", 0.3, 3, 5, 2, family);
+        Family family = new Family("Solanaceae");
+        Species tomato = new Species("Tomate", 0.3, 3, 5, 2, family, new Type("Légume"));
         Variety cherry = new Variety("Cerise", 0.2, 3, 5, 2, tomato);
         Variety roma = new Variety("Roma", 0.3, 3, 5, 2, tomato);
         Variety basilVariety = new Variety("Grand vert", 0.2, 3, 5, 2, species("Basilic"));

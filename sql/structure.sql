@@ -40,9 +40,7 @@ CREATE TABLE Type(
 
 CREATE TABLE Family(
    name_family VARCHAR(50) ,
-   name_type VARCHAR(50)  NOT NULL,
-   PRIMARY KEY(name_family),
-   FOREIGN KEY(name_type) REFERENCES Type(name_type)
+   PRIMARY KEY(name_family)
 );
 
 CREATE TABLE Species(
@@ -53,13 +51,15 @@ CREATE TABLE Species(
    plantation_end INT,
    harvest_duration INT,
    name_family VARCHAR(50)  NOT NULL,
+   name_type VARCHAR(50)  NOT NULL,
    seed_frame_start INT,
    seed_in_start INT,
    seed_out_start INT,
    plantation_protection_start INT,
    plantation_no_protection_start INT,
    PRIMARY KEY(name_species),
-   FOREIGN KEY(name_family) REFERENCES Family(name_family)
+   FOREIGN KEY(name_family) REFERENCES Family(name_family),
+   FOREIGN KEY(name_type) REFERENCES Type(name_type)
 );
 
 CREATE TABLE Variety(

@@ -28,8 +28,8 @@ class ArticleServiceTest {
 
     @Test
     void getArticlesByVariety_shouldReturnDTOsForEveryArticleLinkedToVariety() {
-        Family family = new Family("Solanaceae", new Type("Légume"));
-        Species tomato = new Species("Tomate", 0.3, 3, 5, 2, family);
+        Family family = new Family("Solanaceae");
+        Species tomato = new Species("Tomate", 0.3, 3, 5, 2, family, new Type("Légume"));
         Variety cherry = new Variety("Cerise", 0.2, 3, 5, 2, tomato);
         Article a1 = new Article("Bien planter la tomate cerise", "...", "https://example.com/1", cherry);
         Article a2 = new Article("Astuces d'arrosage", "...", "https://example.com/2", cherry);

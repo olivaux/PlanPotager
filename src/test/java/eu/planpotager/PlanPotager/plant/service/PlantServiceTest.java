@@ -37,8 +37,8 @@ class PlantServiceTest {
     private PlantService plantService;
 
     private Species tomato() {
-        Family family = new Family("Solanacees", new Type("Legume"));
-        return new Species("Tomate", 0.3, 3, 5, 2, family);
+        Family family = new Family("Solanacees");
+        return new Species("Tomate", 0.3, 3, 5, 2, family, new Type("Legume"));
     }
 
     @Test
@@ -79,8 +79,8 @@ class PlantServiceTest {
     void getAvailablePlants_shouldReturnDTOsForEveryPlantOfUser() {
         Species tomato = tomato();
         Variety cherryTomato = new Variety("Tomate Cerise", 0.2, 3, 5, 2, tomato);
-        Family carrotFamily = new Family("Apiacees", new Type("Legume"));
-        Species carrotSpecies = new Species("Carotte", 0.1, 3, 6, 3, carrotFamily);
+        Family carrotFamily = new Family("Apiacees");
+        Species carrotSpecies = new Species("Carotte", 0.1, 3, 6, 3, carrotFamily, new Type("Legume"));
         Variety nantesCarrot = new Variety("Carotte de Nantes", 0.08, 3, 6, 3, carrotSpecies);
 
         Plant tomatoPlant = new Plant(cherryTomato, "Graines du Midi", USER_EMAIL);

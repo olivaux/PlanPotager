@@ -17,8 +17,8 @@ class GardenPlantTest {
     private GardenPlant newGardenPlant() {
         User user = new User("jane.doe@example.com");
         Garden garden = new Garden("Potager du fond", 2.35, 48.85, user);
-        Family family = new Family("Solanacees", new Type("Legume"));
-        Species species = new Species("Tomate", 0.3, 3, 5, 2, family);
+        Family family = new Family("Solanacees");
+        Species species = new Species("Tomate", 0.3, 3, 5, 2, family, new Type("Legume"));
         Variety variety = new Variety("Tomate Cerise", 0.2, 3, 5, 2, species);
         Plant plant = new Plant(variety, "Graines du Midi", "jane.doe@example.com");
         return garden.addPlant(plant, 10, 20);

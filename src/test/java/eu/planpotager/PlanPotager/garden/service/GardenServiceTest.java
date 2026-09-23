@@ -67,14 +67,14 @@ class GardenServiceTest {
     private GardenService gardenService;
 
     private Variety cherryTomatoVariety() {
-        Family family = new Family("Solanacees", new Type("Legume"));
-        Species species = new Species("Tomate", 0.3, 3, 5, 2, family);
+        Family family = new Family("Solanacees");
+        Species species = new Species("Tomate", 0.3, 3, 5, 2, family, new Type("Legume"));
         return new Variety("Tomate Cerise", 0.2, 3, 5, 2, species);
     }
 
     private Plant plantOfSpecies(String speciesName) {
-        Family family = new Family("Famille", new Type("Legume"));
-        Species species = new Species(speciesName, 0.3, 3, 5, 2, family);
+        Family family = new Family("Famille");
+        Species species = new Species(speciesName, 0.3, 3, 5, 2, family, new Type("Legume"));
         Variety variety = new Variety(speciesName + " Variete", 0.2, 3, 5, 2, species);
         return new Plant(variety, "Remarque", USER_EMAIL);
     }

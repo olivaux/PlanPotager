@@ -107,9 +107,9 @@ class GardenDAOIntegrationTest {
         entityManager.persist(user);
         Type type = new Type("Legume");
         entityManager.persist(type);
-        Family family = new Family("Solanaceae", type);
+        Family family = new Family("Solanaceae");
         entityManager.persist(family);
-        Species species = new Species("Tomate", 0.3, 3, 5, 2, family);
+        Species species = new Species("Tomate", 0.3, 3, 5, 2, family, type);
         entityManager.persist(species);
         Variety inheriting = new Variety("Tomate Cerise", null, null, null, null, species);
         entityManager.persist(inheriting);
@@ -146,9 +146,9 @@ class GardenDAOIntegrationTest {
     private Variety persistVarietyChain(String varietyName) {
         Type type = new Type("Legume");
         entityManager.persist(type);
-        Family family = new Family("Solanaceae", type);
+        Family family = new Family("Solanaceae");
         entityManager.persist(family);
-        Species species = new Species("Tomate", 0.3, 3, 5, 2, family);
+        Species species = new Species("Tomate", 0.3, 3, 5, 2, family, type);
         entityManager.persist(species);
         Variety variety = new Variety(varietyName, 0.2, 3, 5, 2, species);
         entityManager.persist(variety);
