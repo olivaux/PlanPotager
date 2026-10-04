@@ -24,8 +24,8 @@ public class SecurityConfig {
     {
         http
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/error").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll()
             )
             .csrf(csrf -> csrf.disable())
             .exceptionHandling(exceptionHandling -> exceptionHandling
