@@ -21,9 +21,9 @@
     - [3.2 Arborescence sur le serveur](#32-arborescence-sur-le-serveur)
     - [3.3 Dockerfile](#33-dockerfile)
     - [3.4 docker-compose.prod.yml](#34-docker-composeprodyml)
-    - [3.5 Secrets (.env)](#35-secrets-env)
-    - [3.6 OAuth2 Google — client dédié à l'alpha](#36-oauth2-google--client-dédié-à-lalpha)
-    - [3.7 Vhost Nginx](#37-vhost-nginx)
+    - [\[x\] 3.5 Secrets (.env)](#x-35-secrets-env)
+    - [\[\] 3.6 OAuth2 Google — client dédié à l'alpha](#-36-oauth2-google--client-dédié-à-lalpha)
+    - [\[x\] 3.7 Vhost Nginx](#x-37-vhost-nginx)
     - [3.8 Premier lancement](#38-premier-lancement)
   - [4. Mise à jour de l'application](#4-mise-à-jour-de-lapplication)
     - [4.1 Processus](#41-processus)
@@ -105,16 +105,28 @@ Points clés de ce schéma :
 
 ### 2.1 Inventaire de l'existant
 
-Avant de toucher à quoi que ce soit, vérifier ce qui tourne déjà pour ne pas rentrer en conflit (ports, ressources) :
+Avant de toucher à quoi que ce soit, vérifier ce qui tourne déjà pour ne pas rentrer en conflit (ports, ressources, comptes) :
 
 ```bash
 docker ps
 ss -tulpn
 df -h
 free -h
+getent passwd | grep -E ':/home/' | cut -d: -f1,3
+groups
 ```
 
+> **Constat sur le serveur de l'alpha (2026-09-24)** : trois comptes humains existent déjà — `fabricadmin` (UID 1000, admin du serveur / blockchain), `emilie` (UID 1001), `planpotager` (UID 1002, déjà créé, membre du groupe `docker`). Conteneurs déjà en place : la stack blockchain (Hyperledger Fabric : peers, orderer, CA, CouchDB), un conteneur `myrcc` (sans port publié), et un conteneur `planpotager-registry-mysql-1` déjà existant (accès DBeaver au registre, `127.0.0.1:3306`, cf. [annexe](#annexe--commandes-utiles)). Ports déjà occupés : `22` (SSH), `80` (Nginx, lancé par `fabricadmin`), `3306` (local uniquement). Libres : `443`, `8080`. Ressources restantes : ~24G disque, ~2.4G RAM. `planpotager` n'a **pas** de droits `sudo` sur ce serveur (voir [2.2](#22-utilisateur-système-dédié)).
+
 ### 2.2 Utilisateur système dédié
+
+Vérifier d'abord qu'un compte dédié n'existe pas déjà (cf. constat en [2.1](#21-inventaire-de-lexistant)) avant d'en créer un :
+
+```bash
+getent passwd | grep -E ':/home/' | cut -d: -f1,3
+```
+
+Sur le serveur de l'alpha, `planpotager` (UID 1002) existe déjà, séparé du compte `fabricadmin` utilisé pour la blockchain — rien à créer. Sur un nouveau serveur, la création se ferait ainsi :
 
 ```bash
 sudo adduser planpotager
@@ -123,7 +135,13 @@ sudo usermod -aG docker planpotager
 
 Tous les fichiers, secrets et conteneurs de PlanPotager vivent sous ce compte, séparé du compte utilisé pour la blockchain.
 
+> **Limite de cette isolation** : le groupe `docker` ne cloisonne pas par utilisateur — tout membre de ce groupe voit et contrôle **tous** les conteneurs du démon Docker, quel que soit le compte qui les a lancés (confirmé : `docker ps` depuis `planpotager` liste aussi bien ses propres conteneurs que ceux de la blockchain). La séparation de compte protège les fichiers, le cron et les clés SSH/API de PlanPotager, pas une éventuelle fuite entre conteneurs via Docker lui-même.
+>
+> **`planpotager` n'a pas de `sudo`** sur ce serveur — vérifié (`sudo` refuse avec « planpotager is not in the sudoers file »). C'est volontaire et cohérent avec l'isolation : aucune étape courante (déploiement, cron, runner CD) n'en a besoin, tout passe par le groupe `docker`. Seules les étapes ponctuelles suivantes ([2.3](#23-mise-à-jour-du-système), [2.5](#25-pare-feu), [2.7](#27-reverse-proxy-et-https)) demandent des privilèges root : à exécuter depuis le compte `fabricadmin` (ou root), qui gère l'administration système du serveur mutualisé.
+
 ### 2.3 Mise à jour du système
+
+⚠️ Nécessite `sudo` — à exécuter depuis le compte `fabricadmin`, `planpotager` n'y a pas accès (voir [2.2](#22-utilisateur-système-dédié)).
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -133,7 +151,9 @@ Ne pas refaire un hardening déjà en place pour la blockchain (SSH, fail2ban, e
 
 ### 2.4 Installation de Docker
 
-Si Docker n'est pas déjà installé pour la blockchain (sinon, passer cette étape — un seul démon Docker suffit pour héberger plusieurs stacks isolées) :
+Déjà fait sur le serveur de l'alpha : le démon Docker est partagé avec la blockchain, et `planpotager` est déjà membre du groupe `docker` (`docker ps` fonctionne sans `sudo` depuis ce compte). Rien à faire.
+
+Sur un nouveau serveur sans Docker, l'installation se ferait ainsi (privilèges root requis, compte admin du serveur) :
 
 ```bash
 curl -fsSL https://get.docker.com | sudo sh
@@ -142,6 +162,8 @@ docker --version && docker compose version
 ```
 
 ### 2.5 Pare-feu
+
+⚠️ Nécessite `sudo` — à exécuter depuis le compte `fabricadmin`.
 
 ```bash
 sudo ufw allow OpenSSH
@@ -157,10 +179,27 @@ Ne pas modifier les règles déjà ouvertes pour la blockchain, seulement ajoute
 
 Créer un enregistrement DNS `A` dédié, par exemple `alpha.<domaine>` → IP du serveur. Un sous-domaine séparé évite d'interférer avec ce qui existe déjà sur le domaine principal et donne une URL stable pour l'étape [3.6](#36-oauth2-google--client-dédié-à-lalpha) (redirect URI OAuth2).
 
+Pas de nom de domaine disponible pour l'alpha-test ? Pas besoin d'en acheter un : [sslip.io](https://sslip.io) résout automatiquement `alpha.<IP-avec-tirets>.sslip.io` vers l'IP indiquée dans le nom lui-même, sans inscription ni config DNS — un vrai enregistrement DNS public, compatible Certbot. Exemple, pour une IP serveur `203.0.113.5` : `alpha.203-0-113-5.sslip.io`. Remplacer `<domaine>` par ce nom dans tout le reste du document (DNS, [3.6](#36-oauth2-google--client-dédié-à-lalpha), [3.7](#37-vhost-nginx)).
+
 ### 2.7 Reverse proxy et HTTPS
 
+⚠️ Nécessite `sudo` — à exécuter depuis le compte `fabricadmin`.
+
+D'abord vérifier ce qui existe déjà, plutôt que de réinstaller à l'aveugle (Nginx tourne déjà sur ce serveur pour le site blockchain, cf. constat en [2.1](#21-inventaire-de-lexistant)) :
+
 ```bash
-sudo apt install nginx certbot python3-certbot-nginx -y
+sudo ss -tulpn | grep -E ':80|:443|:8080'          # confirmer qui écoute sur ces ports
+ls -la /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null   # structure de la config existante
+sudo nginx -T 2>/dev/null | grep -E "server_name|listen|include"
+certbot --version 2>/dev/null || echo "certbot pas installé"
+```
+
+> **Constat (2026-09-24)** : Nginx déjà installé et actif sur le port `80` (lancé par `fabricadmin`). `443` et `8080` sont libres, aucun conflit prévisible avec l'app Spring Boot ou HTTPS. Config organisée en `sites-available`/`sites-enabled` (un seul vhost actif : `myr-web.conf`, probablement le conteneur `myrcc`), déclaré `listen 80 default_server; server_name _;` — c'est-à-dire qu'il capte tout ce qui n'a pas de `server_name` correspondant. Ça ne bloque pas l'ajout d'un vhost nommé `alpha.<domaine>` à côté ([3.7](#37-vhost-nginx)) : Nginx route par `Host` header vers le `server_name` qui correspond exactement en priorité, et ne retombe sur le `default_server` que pour les requêtes sans correspondance (IP directe, autre nom de domaine). **Ne pas toucher à `myr-web.conf`**, seulement ajouter un fichier séparé. `certbot` n'est **pas** installé.
+
+Installer le paquet manquant (`nginx` est déjà présent, inutile de le réinstaller) :
+
+```bash
+sudo apt install certbot python3-certbot-nginx -y
 ```
 
 La configuration du vhost et l'activation HTTPS sont détaillées en [3.7](#37-vhost-nginx), une fois l'application déployée (Certbot a besoin du vhost en place pour délivrer le certificat).
@@ -197,7 +236,13 @@ Le plus simple est de cloner le dépôt directement dans `app/` (`git clone` pui
 
 ### 3.3 Dockerfile
 
+
+
 Build multi-stage : le SPA Vue est buildé puis copié dans les ressources statiques de Spring Boot, conformément à l'architecture "un seul exécutable" ([[project_single_server_deployment]]).
+
+Créer le fichier Dockerfile à la racine du repo (c:\PRO\PlanPotager\Dockerfile)
+
+c'est un build multi-stage : une étape compile le frontend Vue, une autre compile le backend Spring Boot, une dernière assemble l'image finale légère :
 
 ```dockerfile
 # --- Étape 1 : build du frontend (Vue / Vite) ---
@@ -273,9 +318,17 @@ Différence volontaire avec [`compose.yaml`](../compose.yaml) (dev local) : celu
 
 Limiter aussi les ressources du service `app` (`deploy.resources.limits` en Compose v2, ou `mem_limit`/`cpus` en syntaxe courte) si la blockchain est sensible à la contention CPU/RAM ; à ajuster selon la marge constatée en [2.1](#21-inventaire-de-lexistant).
 
-### 3.5 Secrets (.env)
+### [x] 3.5 Secrets (.env)
 
-Fichier `.env` à côté de `docker-compose.prod.yml`, **non commité** (même logique que `application-local.properties`, déjà dans `.gitignore`) :
+⚠️ **Ce fichier ne se prépare pas en local.** Contrairement à `Dockerfile` et `docker-compose.prod.yml` (commités dans le repo, amenés sur le serveur par le `git clone`/`git checkout` de [3.2](#32-arborescence-sur-le-serveur)), `.env` n'est **jamais commité** (même logique que `application-local.properties`, déjà dans `.gitignore`) et n'existe donc jamais sur ton poste : il se crée **directement sur le serveur**, à la main, via SSH, une fois le repo cloné :
+
+```bash
+ssh planpotager@<serveur>
+cd /home/planpotager/app
+nano .env   # coller le contenu ci-dessous en remplaçant les valeurs
+```
+
+Il se place à côté de `docker-compose.prod.yml` (donc dans `/home/planpotager/app/`, cf. [3.2](#32-arborescence-sur-le-serveur)) :
 
 ```
 DB_USERNAME=planpotager
@@ -285,14 +338,25 @@ GOOGLE_CLIENT_ID=<client id du client OAuth2 "alpha">
 GOOGLE_CLIENT_SECRET=<client secret correspondant>
 ```
 
-### 3.6 OAuth2 Google — client dédié à l'alpha
+`DB_PASSWORD`/`DB_ROOT_PASSWORD` peuvent être générés dès maintenant (`openssl rand -base64 32`) ; `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` ne sont disponibles qu'une fois le client OAuth2 créé, à l'étape suivante ([3.6](#36-oauth2-google--client-dédié-à-lalpha)).
+
+### [] 3.6 OAuth2 Google — client dédié à l'alpha
 
 Créer un **nouveau** client OAuth2 dans Google Cloud Console (APIs & Services > Credentials), distinct de celui utilisé en dev local — ne pas réutiliser le client de développement en production :
 
 - Type : Application Web
 - Redirect URI : `https://alpha.<domaine>/login/oauth2/code/google`
 
-### 3.7 Vhost Nginx
+### [x] 3.7 Vhost Nginx
+
+⚠️ Comme `.env` ([3.5](#35-secrets-env)), ce fichier n'existe pas dans le repo ni sur ton poste : c'est de la config système (`/etc/nginx/`), en dehors de `/home/planpotager/app/`. Il se crée **directement sur le serveur**, via SSH, sous le compte `fabricadmin` (`sudo` requis, cf. [2.2](#22-utilisateur-système-dédié)) :
+
+```bash
+ssh fabricadmin@<serveur>
+sudo nano /etc/nginx/sites-available/planpotager   # coller le contenu ci-dessous
+```
+
+Config confirmée en `sites-available`/`sites-enabled` ([2.7](#27-reverse-proxy-et-https)) : le fichier s'ajoute à côté de `myr-web.conf` (site existant, non modifié) sous un nom distinct (`planpotager`).
 
 ```nginx
 server {

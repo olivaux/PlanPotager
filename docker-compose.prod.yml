@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"   # jamais publié en dehors du localhost du serveur
+    environment:
+      - SPRING_PROFILES_ACTIVE=              # ni local, ni dev (voir 3.1)
+      - DB_URL=jdbc:mysql://mysql:3306/mydatabase?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - APP_OAUTH2_SUCCESS_URL=https://alpha.89.167.102.193.sslip.io/profile
+    depends_on:
+      - mysql
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=mydatabase
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql/structure.sql:/docker-entrypoint-initdb.d/01-structure.sql
+      - ./sql/data.sql:/docker-entrypoint-initdb.d/02-data.sql
+    # Pas de "ports:" ici : MySQL n'est joignable que depuis le conteneur "app",
+    # via le réseau interne créé par ce compose file.
+
+volumes:
+  mysql_data:
