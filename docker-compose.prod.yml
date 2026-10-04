@@ -11,7 +11,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - APP_OAUTH2_SUCCESS_URL=https://alpha.89.167.102.193.sslip.io/profile
+      - APP_OAUTH2_SUCCESS_URL=https://planpotager-alpha.89-167-102-193.sslip.io/profile
     depends_on:
       - mysql
     logging:
